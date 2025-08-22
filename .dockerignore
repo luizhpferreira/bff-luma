@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+README.md
+*.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Test files
+*_test.go
+test_*
+
+# Build artifacts
+bin/
+dist/
+
+# Vendor (will be downloaded during build)
+vendor/
+
+# Postman collection
+*.postman_collection.json
+
+# Shell scripts
+*.sh
+
+# Makefile
+Makefile

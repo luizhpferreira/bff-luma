@@ -14,7 +14,7 @@ type Config struct {
 	LNBitsBaseURL     string
 	LNBitsAdminKey    string
 	LNBitsWebhookSecret string
-	DatabasePath      string
+	DatabaseURL       string
 	// Configurações SMTP
 	SMTPHost          string
 	SMTPPort          string
@@ -38,7 +38,7 @@ func LoadConfig() *Config {
 		LNBitsBaseURL:     getEnv("LNBITS_BASE_URL", "http://127.0.0.1:5000"),
 		LNBitsAdminKey:    getEnv("LNBITS_ADMIN_KEY", ""),
 		LNBitsWebhookSecret: getEnv("LNBITS_WEBHOOK_SECRET", ""),
-		DatabasePath:      getEnv("DATABASE_PATH", "./bff_luma.db"),
+		DatabaseURL:       getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/bff_luma?sslmode=disable"),
 		// Configurações SMTP
 		SMTPHost:          getEnv("SMTP_HOST", ""),
 		SMTPPort:          getEnv("SMTP_PORT", "587"),

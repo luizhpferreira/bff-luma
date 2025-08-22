@@ -25,7 +25,7 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// Inicializa banco de dados
-	db, err := database.NewDatabase(cfg.DatabasePath)
+	db, err := database.NewDatabase(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Erro ao inicializar banco de dados: %v", err)
 	}

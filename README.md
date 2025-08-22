@@ -1,566 +1,406 @@
-# BFF Luma - API Backend for Frontend
+# BFF Luma
 
-Uma API BFF (Backend for Frontend) em Go que integra com LNBits para gerenciar carteiras Lightning de forma segura.
+Backend for Frontend (BFF) para integração com LNBits, fornecendo uma API REST para gerenciamento de carteiras Lightning.
 
-## 🚀 Características
+## Funcionalidades
 
-- **Segurança**: As chaves das carteiras nunca são expostas para o frontend
-- **Integração LNBits**: Criação automática de carteiras via Admin Key
-- **SQLite**: Armazenamento local de mapeamento wallet_id ↔ app_user_id
-- **API RESTful**: Endpoints padronizados para operações de carteira
-- **Graceful Shutdown**: Encerramento seguro do servidor
+- Criação de carteiras Lightning via LNBits
+- Autenticação JWT
+- Gerenciamento de usuários
+- Criação de faturas
+- Verificação de status de pagamentos
+- Reset de senha via email
+- Rate limiting
+- Limpeza automática de tokens expirados
+- Suporte a PostgreSQL e SQLite
 
-## 📋 Pré-requisitos
+## Tecnologias
 
-- Go 1.21+
-- LNBits rodando localmente ou remotamente
-- Admin Key do LNBits configurada
+- **Go 1.23** - Linguagem principal
+- **Chi Router** - Roteamento HTTP
+- **PostgreSQL/SQLite** - Banco de dados
+- **JWT** - Autenticação
+- **LNBits** - Backend Lightning
+- **SMTP** - Envio de emails
+- **Docker** - Containerização
 
-## 🛠️ Instalação
+## Estrutura do Projeto
+
+```
+bff_luma/
+├── cmd/
+│   └── server/
+│       └── main.go          # Ponto de entrada da aplicação
+├── internal/
+│   ├── config/
+│   │   └── config.go        # Configurações da aplicação
+│   ├── database/
+│   │   └── database.go      # Camada de acesso a dados
+│   ├── handlers/
+│   │   └── wallet_handler.go # Handlers HTTP
+│   ├── middleware/
+│   │   ├── auth.go          # Middleware de autenticação
+│   │   └── rate_limit.go    # Middleware de rate limiting
+│   ├── models/
+│   │   ├── response.go      # Modelos de resposta
+│   │   └── wallet.go        # Modelos de dados
+│   └── services/
+│       ├── cleanup_service.go    # Serviço de limpeza
+│       ├── email_service.go      # Serviço de email
+│       ├── jwt_service.go        # Serviço JWT
+│       ├── lnbits.go             # Integração com LNBits
+│       ├── password_service.go   # Serviço de senhas
+│       ├── rate_limiter.go       # Rate limiter
+│       └── wallet_service.go     # Serviço de carteiras
+├── docker-compose.yml       # Orquestração de containers
+├── Dockerfile              # Imagem Docker da aplicação
+├── .dockerignore           # Arquivos ignorados pelo Docker
+├── go.mod                  # Dependências Go
+├── go.sum                  # Checksums das dependências
+├── env.example             # Exemplo de variáveis de ambiente
+├── Makefile                # Comandos de automação
+└── README.md               # Este arquivo
+```
+
+## Instalação
+
+### Opção 1: Docker Compose (Recomendado)
 
 1. Clone o repositório:
 ```bash
-git clone <repository-url>
+git clone <url-do-repositorio>
 cd bff_luma
 ```
 
-2. Configure as variáveis de ambiente no arquivo `.env`:
-```env
-# Configurações da aplicação
-APP_PORT=8080
-
-# Configurações JWT
-JWT_SECRET=supersecreto123456789
-
-# Configurações LNbits
-LNBITS_BASE_URL=http://127.0.0.1:5000
-LNBITS_ADMIN_KEY=sua_admin_key_aqui
-LNBITS_WEBHOOK_SECRET=seu_webhook_secret_aqui
-
-# Configurações SMTP (opcional - para emails reais)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=seu_email@gmail.com
-SMTP_PASSWORD=sua_senha_de_app
-SMTP_FROM_EMAIL=seu_email@gmail.com
-SMTP_FROM_NAME=BFF Luma
-SMTP_USE_TLS=true
-```
-
-3. Execute as dependências:
+2. Configure as variáveis de ambiente:
 ```bash
-go mod tidy
+cp env.example .env
+# Edite o arquivo .env com suas configurações
 ```
 
-4. Execute o servidor:
+3. Execute com Docker Compose:
 ```bash
-go run cmd/server/main.go
+# Iniciar todos os serviços
+make docker-up
+
+# Ou usando docker-compose diretamente
+docker-compose up -d
 ```
 
-## 📧 Configuração de Email
-
-O sistema suporta envio de emails reais via SMTP ou modo simulado (para desenvolvimento).
-
-### 🔧 Configuração SMTP
-
-Para usar emails reais, configure as variáveis SMTP no arquivo `.env`:
-
-#### Gmail (Recomendado - Porta 587)
-```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=seu_email@gmail.com
-SMTP_PASSWORD=sua_senha_de_app
-SMTP_FROM_EMAIL=seu_email@gmail.com
-SMTP_FROM_NAME=BFF Luma
-SMTP_USE_TLS=true
+4. Verifique o status:
+```bash
+make status
 ```
 
-#### Gmail (Alternativa - Porta 465)
-```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_USERNAME=seu_email@gmail.com
-SMTP_PASSWORD=sua_senha_de_app
-SMTP_FROM_EMAIL=seu_email@gmail.com
-SMTP_FROM_NAME=BFF Luma
-SMTP_USE_TLS=true
+### Opção 2: Desenvolvimento Local
+
+#### Pré-requisitos
+
+- Go 1.23 ou superior
+- PostgreSQL ou SQLite3
+- Acesso a um servidor LNBits
+
+#### Configuração
+
+1. Clone o repositório:
+```bash
+git clone <url-do-repositorio>
+cd bff_luma
 ```
 
-**Nota:** Para Gmail, use uma "Senha de App" em vez da senha normal.
-
-**Diferenças entre Portas:**
-- **Porta 587 (STARTTLS)**: Padrão moderno, mais flexível, recomendado
-- **Porta 465 (SSL/TLS Direto)**: Conexão criptografada desde o início, alternativa válida
-
-#### Outlook/Hotmail
-```env
-SMTP_HOST=smtp-mail.outlook.com
-SMTP_PORT=587
-SMTP_USERNAME=seu_email@outlook.com
-SMTP_PASSWORD=sua_senha
-SMTP_FROM_EMAIL=seu_email@outlook.com
-SMTP_FROM_NAME=BFF Luma
-SMTP_USE_TLS=true
+2. Instale as dependências:
+```bash
+make dev-deps
 ```
 
-#### SendGrid
-```env
-SMTP_HOST=smtp.sendgrid.net
-SMTP_PORT=587
-SMTP_USERNAME=apikey
-SMTP_PASSWORD=sua_api_key_sendgrid
-SMTP_FROM_EMAIL=noreply@seudominio.com
-SMTP_FROM_NAME=BFF Luma
-SMTP_USE_TLS=true
+3. Configure as variáveis de ambiente:
+```bash
+make dev-setup
+# Edite o arquivo .env com suas configurações
 ```
 
-### 🧪 Modo Simulado
-
-Se as configurações SMTP não estiverem definidas, o sistema funciona em modo simulado:
-- Emails são logados no console
-- Tokens de reset são exibidos nos logs
-- Ideal para desenvolvimento e testes
-
-## 📚 API Endpoints
-
-### Health Check
-```
-GET /health
-```
-Verifica se a API está funcionando.
-
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "API funcionando",
-  "data": {
-    "status": "ok",
-    "service": "BFF Luma API",
-    "version": "1.0.0"
-  }
-}
+4. Execute a aplicação:
+```bash
+make run
 ```
 
-### Criar Carteira (Cadastro)
-```
-POST /api/v1/wallets
-```
+## Configuração das Variáveis de Ambiente
 
-**Request Body:**
-```json
-{
-  "email": "usuario@exemplo.com",
-  "password": "MinhaSenha@123",
-  "password_repeat": "MinhaSenha@123"
-}
-```
+Copie o arquivo `env.example` para `.env` e configure as seguintes variáveis:
 
-**Requisitos da Senha:**
-- Mínimo 8 caracteres
-- Pelo menos uma letra maiúscula
-- Pelo menos uma letra minúscula
-- Pelo menos um número
-- Pelo menos um caractere especial
-- Não pode conter sequências comuns (123, abc, qwe, etc.)
-- Não pode ter mais de 2 caracteres iguais consecutivos
+### Configurações da Aplicação
+- `APP_PORT`: Porta onde a aplicação será executada (padrão: 8080)
+- `JWT_SECRET`: Chave secreta para assinatura de JWT
 
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Carteira criada com sucesso",
-  "data": {
-    "wallet_id": "abc123def456",
-    "email": "usuario@exemplo.com",
-    "message": "Carteira criada com sucesso"
-  }
-}
-```
+### Configurações LNBits
+- `LNBITS_BASE_URL`: URL base do servidor LNBits
+- `LNBITS_ADMIN_KEY`: Chave de administrador do LNBits
+- `LNBITS_WEBHOOK_SECRET`: Segredo para webhooks
+- `LNBITS_PORT`: Porta do LNBits (padrão: 5000)
+- `LNBITS_SECRET`: Segredo do LNBits
+- `LNBITS_ADMIN_UI`: Habilitar UI de admin (true/false)
+- `LNBITS_ACTIVE_EXTENSIONS`: Extensões ativas (ex: usermanager)
 
-### Login
-```
-POST /api/v1/login
-```
+### Configurações do Banco de Dados
+- `DATABASE_TYPE`: Tipo de banco (postgres/sqlite)
+- `DATABASE_URL`: URL de conexão PostgreSQL
+- `DATABASE_PATH`: Caminho para arquivo SQLite (fallback)
+- `POSTGRES_USER`: Usuário PostgreSQL
+- `POSTGRES_PASSWORD`: Senha PostgreSQL
+- `POSTGRES_DB`: Nome do banco PostgreSQL
 
-**Request Body:**
-```json
-{
-  "email": "usuario@exemplo.com",
-  "password": "MinhaSenha@123"
-}
-```
+### Configurações Bitcoin/CLN
+- `BITCOIN_RPCUSER`: Usuário RPC Bitcoin
+- `BITCOIN_RPCPASSWORD`: Senha RPC Bitcoin
+- `CLN_ALIAS`: Alias do nó CLN
 
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Login realizado com sucesso",
-  "data": {
-    "wallet_id": "abc123def456",
-    "email": "usuario@exemplo.com",
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "message": "Login realizado com sucesso"
-  }
-}
-```
+### Configurações Cloudflare
+- `CLOUDFLARED_TOKEN`: Token do Cloudflare Tunnel
+- `PUBLIC_HOST`: Host público
 
-### Refresh Token
-```
-POST /api/v1/refresh
-```
+### Configurações SMTP
+- `SMTP_HOST`: Servidor SMTP
+- `SMTP_PORT`: Porta SMTP
+- `SMTP_USERNAME`: Usuário SMTP
+- `SMTP_PASSWORD`: Senha SMTP
+- `SMTP_FROM_EMAIL`: Email remetente
+- `SMTP_FROM_NAME`: Nome remetente
+- `SMTP_USE_TLS`: Usar TLS (true/false)
 
-**Headers:**
-```
-Authorization: Bearer <token>
+## Comandos Úteis
+
+### Docker Compose
+```bash
+# Iniciar todos os serviços
+make docker-up
+
+# Parar todos os serviços
+make docker-down
+
+# Ver logs de todos os serviços
+make docker-logs
+
+# Ver logs apenas da aplicação
+make docker-logs-app
+
+# Reiniciar apenas a aplicação
+make docker-restart
+
+# Ver status dos containers
+make status
+
+# Verificar saúde da aplicação
+make health
 ```
 
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Token renovado com sucesso",
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "message": "Token renovado com sucesso"
-  }
-}
+### Desenvolvimento
+```bash
+# Compilar localmente
+make build
+
+# Executar localmente
+make run
+
+# Executar testes
+make test
+
+# Limpar arquivos de build
+make clean
+
+# Instalar dependências
+make dev-deps
 ```
 
-### Recuperação de Senha
-```
-POST /api/v1/forgot-password
-```
+### Banco de Dados
+```bash
+# Resetar banco de dados (CUIDADO!)
+make db-reset
 
-**Request Body:**
-```json
-{
-  "email": "usuario@exemplo.com"
-}
+# Fazer backup
+make backup
 ```
 
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Solicitação processada",
-  "data": {
-    "message": "Se o email existir em nossa base, você receberá um link de recuperação"
-  }
-}
+### Logs Específicos
+```bash
+# Logs do Bitcoin
+make logs-bitcoin
+
+# Logs do CLN
+make logs-cln
+
+# Logs do LNBits
+make logs-lnbits
+
+# Logs do PostgreSQL
+make logs-postgres
 ```
 
-### Reset de Senha
-```
-POST /api/v1/reset-password
-```
+## Uso
 
-**Request Body:**
-```json
-{
-  "token": "token-gerado-no-email",
-  "new_password": "NovaSenha@2024!",
-  "new_password_repeat": "NovaSenha@2024!"
-}
-```
+### Endpoints da API
 
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Senha redefinida com sucesso",
-  "data": {
-    "message": "Senha redefinida com sucesso"
-  }
-}
-```
+#### Autenticação
+- `POST /api/v1/wallets` - Criar nova carteira
+- `POST /api/v1/login` - Fazer login
+- `POST /api/v1/refresh` - Renovar token
+- `POST /api/v1/forgot-password` - Solicitar reset de senha
+- `POST /api/v1/reset-password` - Resetar senha
 
-### Limpeza de Tokens (Administração)
-```
-POST /api/v1/admin/cleanup
-```
+#### Carteiras (Autenticado)
+- `GET /api/v1/wallets` - Obter informações da carteira
+- `POST /api/v1/invoices` - Criar fatura
+- `GET /api/v1/payments/status` - Verificar status de pagamento
 
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Limpeza executada com sucesso",
-  "data": {
-    "expired_tokens": 0,
-    "interval": "1h0m0s",
-    "is_running": true
-  }
-}
-```
+#### Administração
+- `POST /api/v1/admin/cleanup` - Executar limpeza manual
+- `GET /api/v1/admin/cleanup/stats` - Estatísticas de limpeza
+- `GET /api/v1/admin/rate-limit/stats` - Estatísticas de rate limiting
 
-### Estatísticas de Limpeza (Administração)
-```
-GET /api/v1/admin/cleanup/stats
-```
+#### Monitoramento
+- `GET /health` - Health check
 
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Estatísticas obtidas com sucesso",
-  "data": {
-    "expired_tokens": 0,
-    "interval": "1h0m0s",
-    "is_running": true
-  }
-}
-```
+### Exemplos de Uso
 
-### Estatísticas de Rate Limiting (Administração)
-```
-GET /api/v1/admin/rate-limit/stats
-```
-
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Estatísticas do rate limiter obtidas com sucesso",
-  "data": {
-    "email_limiters_count": 2,
-    "ip_limiters_count": 1,
-    "ip_requests_limit": 100,
-    "ip_window": "1m0s",
-    "login_attempts_limit": 5,
-    "login_window": "15m0s",
-    "reset_attempts_limit": 3,
-    "reset_window": "1h0m0s"
-  }
-}
-```
-
-### Obter Informações da Carteira
-```
-GET /api/v1/wallets
-```
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Informações da carteira",
-  "data": {
-    "id": 1,
-    "email": "usuario@exemplo.com",
-    "wallet_id": "abc123def456",
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T10:30:00Z"
-  }
-}
-```
-
-### Criar Invoice
-```
-POST /api/v1/invoices
-```
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "amount": 1000,
-  "memo": "Pagamento teste"
-}
-```
-
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Invoice criado com sucesso",
-  "data": {
-    "payment_request": "lnbc10u1p3qkqkqpp5...",
-    "payment_hash": "abc123def456...",
-    "amount": 1000,
-    "memo": "Pagamento teste",
-    "expires_at": 1642234567
-  }
-}
-```
-
-### Verificar Status do Pagamento
-```
-GET /api/v1/payments/status?payment_hash=abc123def456
-```
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Resposta:**
-```json
-{
-  "success": true,
-  "message": "Status do pagamento verificado",
-  "data": {
-    "payment_hash": "abc123def456",
-    "paid": true,
-    "amount": 1000,
-    "memo": "Pagamento teste",
-    "email": "usuario@exemplo.com",
-    "paid_at": 1642234567
-  }
-}
-```
-
-## 🔒 Segurança
-
-- **Chaves Protegidas**: As chaves Admin e Invoice das carteiras são armazenadas apenas no backend
-- **Senhas**: As senhas são armazenadas com hash bcrypt (custo 12) no banco de dados
-- **Validação**: Todos os inputs são validados antes do processamento
-- **Autenticação**: Sistema de login com email e senha
-- **JWT**: Tokens JWT para sessões seguras (expira em 24 horas)
-- **Middleware**: Autenticação obrigatória para endpoints protegidos
-- **Rate Limiting**: Proteção contra ataques de força bruta e abuso da API
-  - **Login**: 5 tentativas por 15 minutos por email
-  - **Recuperação de Senha**: 3 tentativas por hora por email
-  - **IP**: 100 requisições por minuto por IP
-- **Email**: Sistema de envio de emails via SMTP ou modo simulado
-  - **Recuperação de Senha**: Emails com links seguros para reset
-  - **Boas-vindas**: Emails automáticos para novos usuários
-- **Recuperação de Senha**: Sistema seguro de reset com tokens únicos (expira em 1 hora)
-- **Limpeza Automática**: Remoção automática de tokens expirados a cada hora
-- **Logs**: Operações importantes são logadas para auditoria
-- **CORS**: Configurado para permitir requisições cross-origin
-
-## 🔐 Requisitos de Senha Forte
-
-Para garantir a segurança das contas, todas as senhas devem atender aos seguintes requisitos:
-
-### 📋 Regras Obrigatórias:
-- **Mínimo 8 caracteres**
-- **Pelo menos 1 letra maiúscula** (A-Z)
-- **Pelo menos 1 letra minúscula** (a-z)
-- **Pelo menos 1 número** (0-9)
-- **Pelo menos 1 caractere especial** (!@#$%^&*()_+-=[]{}|;:,.<>?)
-
-### 🚫 Restrições:
-- **Não pode conter sequências comuns** como "123", "abc", "password", "senha"
-- **Não pode ter mais de 2 caracteres idênticos consecutivos** (ex: "aaa", "111")
-
-### 🔒 Armazenamento Seguro:
-- **Hash bcrypt** com custo 12 (padrão de segurança)
-- **Salt único** para cada senha
-- **Impossível reverter** o hash para obter a senha original
-
-### ✅ Exemplos de Senhas Válidas:
-- `B@nco2024!`
-- `MinhaSenha@123`
-- `Secure#Pass1`
-- `P@ssw0rd!`
-
-### ❌ Exemplos de Senhas Inválidas:
-- `12345678` (só números, sem maiúsculas/minúsculas/especiais)
-- `password` (sequência comum, sem números/especiais)
-- `Senha123` (sem caracteres especiais)
-- `B@nco2024` (sem caracteres especiais)
-- `aaa@Bc123` (3 'a' consecutivos)
-
-## 🗄️ Banco de Dados
-
-O sistema utiliza SQLite para armazenar o mapeamento entre `app_user_id` e `wallet_id`. A estrutura da tabela:
-
-```sql
-CREATE TABLE wallets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL,
-    wallet_id TEXT NOT NULL UNIQUE,
-    admin_key TEXT NOT NULL,
-    invoice_key TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## 🔄 Fluxo de Operação
-
-1. **Cadastro de Usuário**:
-   - Frontend envia `email` + `password` + `password_repeat`
-   - Backend valida se as senhas coincidem
-   - Backend chama LNBits com Admin Key
-   - LNBits retorna `wallet_id`, `admin_key`, `invoice_key`
-   - Backend salva mapeamento no SQLite
-   - Frontend recebe apenas `wallet_id`
-
-2. **Login**:
-   - Frontend envia `email` + `password`
-   - Backend verifica credenciais no banco
-   - Backend gera token JWT e retorna `wallet_id`, `token` e confirmação
-
-3. **Criação de Invoice**:
-   - Frontend envia `Authorization: Bearer <token>` + `amount`
-   - Backend valida token JWT e extrai email
-   - Backend busca `invoice_key` no banco
-   - Backend chama LNBits com `invoice_key`
-   - Frontend recebe `payment_request` (BOLT11)
-
-4. **Verificação de Pagamento**:
-   - Frontend envia `Authorization: Bearer <token>` + `payment_hash`
-   - Backend busca `invoice_key` e verifica no LNBits
-   - Frontend recebe status do pagamento
-
-## 🚀 Executando em Produção
-
-1. Configure as variáveis de ambiente adequadas
-2. Use um proxy reverso (nginx, traefik)
-3. Configure SSL/TLS
-4. Monitore logs e métricas
-5. Configure backup do banco SQLite
-
-## 🧪 Testando
-
-### Criar uma carteira:
+#### Criar uma carteira
 ```bash
 curl -X POST http://localhost:8080/api/v1/wallets \
   -H "Content-Type: application/json" \
-  -d '{"app_user_id": "test_user_123"}'
+  -d '{
+    "email": "usuario@exemplo.com",
+    "password": "senha123"
+  }'
 ```
 
-### Criar um invoice:
+#### Fazer login
+```bash
+curl -X POST http://localhost:8080/api/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "usuario@exemplo.com",
+    "password": "senha123"
+  }'
+```
+
+#### Criar uma fatura (autenticado)
 ```bash
 curl -X POST http://localhost:8080/api/v1/invoices \
   -H "Content-Type: application/json" \
-  -d '{"app_user_id": "test_user_123", "amount": 1000, "memo": "Teste"}'
+  -H "Authorization: Bearer SEU_TOKEN_JWT" \
+  -d '{
+    "amount": 1000,
+    "description": "Pagamento de teste"
+  }'
 ```
 
-### Verificar status:
+## Arquitetura Docker
+
+O projeto inclui uma stack completa com:
+
+- **bitcoind**: Nó Bitcoin principal
+- **cln**: Core Lightning Network
+- **postgres**: Banco de dados PostgreSQL
+- **lnbits**: Interface Lightning
+- **bff-luma**: Esta aplicação BFF
+- **cloudflared**: Tunnel Cloudflare
+- **tor**: Proxy Tor
+
+### Rede Docker
+
+Todos os serviços estão na rede `luma` e podem se comunicar usando os nomes dos containers.
+
+### Volumes
+
+- `./data/bitcoin`: Dados do Bitcoin
+- `./data/cln`: Dados do CLN
+- `./data/postgres`: Dados do PostgreSQL
+- `./data/tor`: Dados do Tor
+
+## Estrutura da API
+
+### Respostas
+
+Todas as respostas seguem o padrão:
+```json
+{
+  "success": true,
+  "message": "Mensagem de sucesso",
+  "data": {
+    // Dados específicos da resposta
+  }
+}
+```
+
+### Códigos de Status
+
+- `200` - Sucesso
+- `201` - Criado
+- `400` - Requisição inválida
+- `401` - Não autorizado
+- `403` - Proibido
+- `404` - Não encontrado
+- `429` - Muitas requisições
+- `500` - Erro interno do servidor
+
+## Segurança
+
+- Autenticação JWT
+- Rate limiting por IP
+- Validação de entrada
+- Sanitização de dados
+- Headers de segurança CORS
+- Timeout de requisições
+- Containers não-root
+
+## Monitoramento
+
+- Health check endpoint
+- Logs estruturados
+- Métricas de rate limiting
+- Estatísticas de limpeza automática
+- Monitoramento de containers
+
+## Troubleshooting
+
+### Problemas Comuns
+
+1. **Aplicação não inicia**
+   ```bash
+   make docker-logs-app
+   ```
+
+2. **Banco de dados não conecta**
+   ```bash
+   make logs-postgres
+   ```
+
+3. **LNBits não responde**
+   ```bash
+   make logs-lnbits
+   ```
+
+4. **Bitcoin não sincroniza**
+   ```bash
+   make logs-bitcoin
+   ```
+
+### Reset Completo
+
+Para resetar completamente o ambiente:
 ```bash
-curl "http://localhost:8080/api/v1/payments/status?app_user_id=test_user_123&payment_hash=abc123"
+make docker-down
+docker system prune -f
+docker volume prune -f
+make docker-up
 ```
 
-## 📝 Logs
-
-O sistema gera logs para:
-- Criação de carteiras
-- Criação de invoices
-- Erros de operação
-- Inicialização e shutdown do servidor
-
-## 🤝 Contribuindo
+## Contribuição
 
 1. Fork o projeto
-2. Crie uma branch para sua feature
-3. Commit suas mudanças
-4. Push para a branch
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
 5. Abra um Pull Request
 
-## 📄 Licença
+## Licença
 
-Este projeto está sob a licença MIT.
+Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.

@@ -1,0 +1,81 @@
+#
+
+
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: bff_luma_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bff_luma}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - bff_luma_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bff_luma"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # BFF Luma Application
+  bff_luma:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bff_luma_app
+    restart: unless-stopped
+    environment:
+      - APP_PORT=${APP_PORT:-8080}
+      - LNBITS_BASE_URL=${LNBITS_BASE_URL:-http://127.0.0.1:5000}
+      - LNBITS_ADMIN_KEY=${LNBITS_ADMIN_KEY}
+      - DATABASE_URL=${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/bff_luma?sslmode=disable}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-noreply@bff-luma.com}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-BFF Luma}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-true}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bff_luma_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Cloudflare Tunnel
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: bff_luma_cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - bff_luma
+    networks:
+      - bff_luma_network
+    profiles:
+      - tunnel
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  bff_luma_network:
+    driver: bridge
