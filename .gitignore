@@ -1,0 +1,62 @@
+# Arquivos de configuração com dados sensíveis
+.env
+.env.local
+.env.production
+.env.staging
+
+# Binários compilados
+bff-luma
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Arquivos de teste
+*.test
+*.out
+
+# Cobertura de código
+*.cover
+
+# Arquivos de banco de dados
+*.db
+*.sqlite
+*.sqlite3
+bff_luma.db
+bff-luma.db
+
+# Logs
+*.log
+logs/
+
+# Arquivos temporários
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependências
+vendor/
+
+# Arquivos de build
+build/
+dist/
+
+# Arquivos de backup
+*.bak
+*.backup
+
+# Arquivos de cache
+.cache/
+*.cache
+
+# Arquivos de configuração local
+config.local.*
