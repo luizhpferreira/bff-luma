@@ -76,6 +76,13 @@ func (s *WalletService) CreateWallet(req *models.CreateWalletRequest) (*models.C
 		return nil, fmt.Errorf("erro ao salvar carteira no banco: %w", err)
 	}
 
+	// Envia email de boas-vindas
+	go func() {
+		if err := s.email.SendWelcomeEmail(req.Email, wallet.WalletID); err != nil {
+			log.Printf("⚠️ Erro ao enviar email de boas-vindas para %s: %v", req.Email, err)
+		}
+	}()
+
 	log.Printf("Carteira criada com sucesso para email %s: %s", req.Email, wallet.WalletID)
 
 	response := &models.CreateWalletResponse{

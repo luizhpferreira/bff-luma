@@ -34,7 +34,7 @@ func main() {
 	// Inicializa serviços
 	lnbitsService := services.NewLNBitsService(cfg.LNBitsBaseURL, cfg.LNBitsAdminKey, cfg.LNBitsWebhookSecret)
 	jwtService := services.NewJWTService(cfg.JWTSecret)
-	emailService := services.NewEmailService()
+	emailService := services.NewEmailService(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword, cfg.SMTPFromEmail, cfg.SMTPFromName, cfg.SMTPUseTLS)
 	passwordService := services.NewPasswordService()
 	cleanupService := services.NewCleanupService(db)
 	rateLimiter := services.NewRateLimiter()

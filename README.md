@@ -36,6 +36,15 @@ JWT_SECRET=supersecreto123456789
 LNBITS_BASE_URL=http://127.0.0.1:5000
 LNBITS_ADMIN_KEY=sua_admin_key_aqui
 LNBITS_WEBHOOK_SECRET=seu_webhook_secret_aqui
+
+# Configurações SMTP (opcional - para emails reais)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=seu_email@gmail.com
+SMTP_PASSWORD=sua_senha_de_app
+SMTP_FROM_EMAIL=seu_email@gmail.com
+SMTP_FROM_NAME=BFF Luma
+SMTP_USE_TLS=true
 ```
 
 3. Execute as dependências:
@@ -47,6 +56,71 @@ go mod tidy
 ```bash
 go run cmd/server/main.go
 ```
+
+## 📧 Configuração de Email
+
+O sistema suporta envio de emails reais via SMTP ou modo simulado (para desenvolvimento).
+
+### 🔧 Configuração SMTP
+
+Para usar emails reais, configure as variáveis SMTP no arquivo `.env`:
+
+#### Gmail (Recomendado - Porta 587)
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=seu_email@gmail.com
+SMTP_PASSWORD=sua_senha_de_app
+SMTP_FROM_EMAIL=seu_email@gmail.com
+SMTP_FROM_NAME=BFF Luma
+SMTP_USE_TLS=true
+```
+
+#### Gmail (Alternativa - Porta 465)
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USERNAME=seu_email@gmail.com
+SMTP_PASSWORD=sua_senha_de_app
+SMTP_FROM_EMAIL=seu_email@gmail.com
+SMTP_FROM_NAME=BFF Luma
+SMTP_USE_TLS=true
+```
+
+**Nota:** Para Gmail, use uma "Senha de App" em vez da senha normal.
+
+**Diferenças entre Portas:**
+- **Porta 587 (STARTTLS)**: Padrão moderno, mais flexível, recomendado
+- **Porta 465 (SSL/TLS Direto)**: Conexão criptografada desde o início, alternativa válida
+
+#### Outlook/Hotmail
+```env
+SMTP_HOST=smtp-mail.outlook.com
+SMTP_PORT=587
+SMTP_USERNAME=seu_email@outlook.com
+SMTP_PASSWORD=sua_senha
+SMTP_FROM_EMAIL=seu_email@outlook.com
+SMTP_FROM_NAME=BFF Luma
+SMTP_USE_TLS=true
+```
+
+#### SendGrid
+```env
+SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=587
+SMTP_USERNAME=apikey
+SMTP_PASSWORD=sua_api_key_sendgrid
+SMTP_FROM_EMAIL=noreply@seudominio.com
+SMTP_FROM_NAME=BFF Luma
+SMTP_USE_TLS=true
+```
+
+### 🧪 Modo Simulado
+
+Se as configurações SMTP não estiverem definidas, o sistema funciona em modo simulado:
+- Emails são logados no console
+- Tokens de reset são exibidos nos logs
+- Ideal para desenvolvimento e testes
 
 ## 📚 API Endpoints
 
@@ -357,6 +431,9 @@ Authorization: Bearer <token>
   - **Login**: 5 tentativas por 15 minutos por email
   - **Recuperação de Senha**: 3 tentativas por hora por email
   - **IP**: 100 requisições por minuto por IP
+- **Email**: Sistema de envio de emails via SMTP ou modo simulado
+  - **Recuperação de Senha**: Emails com links seguros para reset
+  - **Boas-vindas**: Emails automáticos para novos usuários
 - **Recuperação de Senha**: Sistema seguro de reset com tokens únicos (expira em 1 hora)
 - **Limpeza Automática**: Remoção automática de tokens expirados a cada hora
 - **Logs**: Operações importantes são logadas para auditoria

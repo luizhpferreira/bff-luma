@@ -15,6 +15,14 @@ type Config struct {
 	LNBitsAdminKey    string
 	LNBitsWebhookSecret string
 	DatabasePath      string
+	// Configurações SMTP
+	SMTPHost          string
+	SMTPPort          string
+	SMTPUsername      string
+	SMTPPassword      string
+	SMTPFromEmail     string
+	SMTPFromName      string
+	SMTPUseTLS        bool
 }
 
 // LoadConfig carrega as configurações do arquivo .env
@@ -31,6 +39,14 @@ func LoadConfig() *Config {
 		LNBitsAdminKey:    getEnv("LNBITS_ADMIN_KEY", ""),
 		LNBitsWebhookSecret: getEnv("LNBITS_WEBHOOK_SECRET", ""),
 		DatabasePath:      getEnv("DATABASE_PATH", "./bff_luma.db"),
+		// Configurações SMTP
+		SMTPHost:          getEnv("SMTP_HOST", ""),
+		SMTPPort:          getEnv("SMTP_PORT", "587"),
+		SMTPUsername:      getEnv("SMTP_USERNAME", ""),
+		SMTPPassword:      getEnv("SMTP_PASSWORD", ""),
+		SMTPFromEmail:     getEnv("SMTP_FROM_EMAIL", "noreply@bff-luma.com"),
+		SMTPFromName:      getEnv("SMTP_FROM_NAME", "BFF Luma"),
+		SMTPUseTLS:        getEnv("SMTP_USE_TLS", "true") == "true",
 	}
 }
 
