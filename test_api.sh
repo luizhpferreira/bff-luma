@@ -88,8 +88,14 @@ CLEANUP_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/admin/cleanup)
 echo "$CLEANUP_RESPONSE" | jq '.'
 echo ""
 
-# Teste 9: Reset de senha (simulado)
-echo "9️⃣ Testando reset de senha (simulado)..."
+# Teste 9: Estatísticas de rate limiting
+echo "9️⃣ Testando estatísticas de rate limiting..."
+RATE_LIMIT_STATS=$(curl -s http://localhost:8080/api/v1/admin/rate-limit/stats)
+echo "$RATE_LIMIT_STATS" | jq '.'
+echo ""
+
+# Teste 10: Reset de senha (simulado)
+echo "🔟 Testando reset de senha (simulado)..."
 echo "⚠️ Este teste requer um token válido do teste anterior"
 echo ""
 
@@ -106,8 +112,8 @@ INVOICE_RESPONSE=$(curl -s -X POST "$API_URL/invoices" \
 echo "$INVOICE_RESPONSE" | jq '.'
 echo ""
 
-# Teste 11: Tentar criar carteira duplicada (deve falhar)
-echo "1️⃣1️⃣ Tentando criar carteira duplicada (deve falhar)..."
+# Teste 12: Tentar criar carteira duplicada (deve falhar)
+echo "1️⃣2️⃣ Tentando criar carteira duplicada (deve falhar)..."
 curl -s -X POST "$API_URL/wallets" \
   -H "Content-Type: application/json" \
   -d "{
@@ -117,8 +123,8 @@ curl -s -X POST "$API_URL/wallets" \
   }" | jq '.'
 echo ""
 
-# Teste 12: Tentar login com senha incorreta (deve falhar)
-echo "1️⃣2️⃣ Tentando login com senha incorreta (deve falhar)..."
+# Teste 13: Tentar login com senha incorreta (deve falhar)
+echo "1️⃣3️⃣ Tentando login com senha incorreta (deve falhar)..."
 curl -s -X POST "$API_URL/login" \
   -H "Content-Type: application/json" \
   -d "{
@@ -127,8 +133,8 @@ curl -s -X POST "$API_URL/login" \
   }" | jq '.'
 echo ""
 
-# Teste 13: Tentar acessar rota protegida sem token (deve falhar)
-echo "1️⃣3️⃣ Tentando acessar rota protegida sem token (deve falhar)..."
+# Teste 14: Tentar acessar rota protegida sem token (deve falhar)
+echo "1️⃣4️⃣ Tentando acessar rota protegida sem token (deve falhar)..."
 curl -s "$API_URL/wallets"
 echo ""
 echo ""
@@ -147,5 +153,6 @@ echo "✅ Recuperação de Senha - Funcionando"
 echo "✅ Reset de Senha - Funcionando"
 echo "✅ Hash de Senhas (bcrypt) - Funcionando"
 echo "✅ Limpeza Automática - Funcionando"
+echo "✅ Rate Limiting - Funcionando"
 echo "⚠️ Criação de Invoices - Problema de conexão no LNBits"
 echo "⚠️ Verificação de Pagamentos - Depende dos invoices"

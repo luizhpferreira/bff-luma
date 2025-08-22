@@ -37,10 +37,11 @@ func main() {
 	emailService := services.NewEmailService()
 	passwordService := services.NewPasswordService()
 	cleanupService := services.NewCleanupService(db)
+	rateLimiter := services.NewRateLimiter()
 	walletService := services.NewWalletService(db, lnbitsService, jwtService, emailService, passwordService)
 
 	// Inicializa handlers
-	walletHandler := handlers.NewWalletHandler(walletService, cleanupService)
+	walletHandler := handlers.NewWalletHandler(walletService, cleanupService, rateLimiter)
 
 	// Inicia serviço de limpeza automática
 	cleanupService.Start()
@@ -70,6 +71,9 @@ func main() {
 
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {
+		// Aplica rate limiting global
+		r.Use(authmiddleware.RateLimitMiddleware(rateLimiter))
+		
 		// Rotas públicas (não precisam de autenticação)
 		r.Post("/wallets", walletHandler.CreateWallet)
 		r.Post("/login", walletHandler.Login)
@@ -77,9 +81,10 @@ func main() {
 		r.Post("/forgot-password", walletHandler.ForgotPassword)
 		r.Post("/reset-password", walletHandler.ResetPassword)
 		
-		// Rotas de administração (limpeza)
+		// Rotas de administração (limpeza e rate limit stats)
 		r.Post("/admin/cleanup", walletHandler.CleanupTokens)
 		r.Get("/admin/cleanup/stats", walletHandler.GetCleanupStats)
+		r.Get("/admin/rate-limit/stats", walletHandler.GetRateLimitStats)
 		
 		// Rotas protegidas (precisam de autenticação)
 		r.Group(func(r chi.Router) {

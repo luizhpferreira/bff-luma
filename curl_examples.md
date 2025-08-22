@@ -146,6 +146,47 @@ curl http://localhost:8080/api/v1/admin/cleanup/stats
 }
 ```
 
+### 8. Estatísticas de Rate Limiting (Administração)
+```bash
+curl http://localhost:8080/api/v1/admin/rate-limit/stats
+```
+
+**Resposta esperada:**
+```json
+{
+  "success": true,
+  "message": "Estatísticas do rate limiter obtidas com sucesso",
+  "data": {
+    "email_limiters_count": 2,
+    "ip_limiters_count": 1,
+    "ip_requests_limit": 100,
+    "ip_window": "1m0s",
+    "login_attempts_limit": 5,
+    "login_window": "15m0s",
+    "reset_attempts_limit": 3,
+    "reset_window": "1h0m0s"
+  }
+}
+```
+
+### 9. Limpeza Manual (Administração)
+```bash
+curl -X POST http://localhost:8080/api/v1/admin/cleanup
+```
+
+**Resposta esperada:**
+```json
+{
+  "success": true,
+  "message": "Estatísticas obtidas com sucesso",
+  "data": {
+    "expired_tokens": 0,
+    "interval": "1h0m0s",
+    "is_running": true
+  }
+}
+```
+
 ### 8. Obter Informações da Carteira
 ```bash
 curl -H "Authorization: Bearer <seu_token_aqui>" \
@@ -169,7 +210,7 @@ curl -H "Authorization: Bearer <seu_token_aqui>" \
 
 ## ⚠️ Endpoints com Problemas de Conexão LNBits
 
-### 9. Criar Invoice
+### 12. Criar Invoice
 ```bash
 curl -X POST http://localhost:8080/api/v1/invoices \
   -H "Authorization: Bearer <seu_token_aqui>" \
@@ -189,7 +230,7 @@ curl -X POST http://localhost:8080/api/v1/invoices \
 }
 ```
 
-### 10. Verificar Status do Pagamento
+### 13. Verificar Status do Pagamento
 ```bash
 curl -H "Authorization: Bearer <seu_token_aqui>" \
   "http://localhost:8080/api/v1/payments/status?payment_hash=abc123"

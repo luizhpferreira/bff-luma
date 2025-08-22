@@ -238,6 +238,29 @@ GET /api/v1/admin/cleanup/stats
 }
 ```
 
+### Estatísticas de Rate Limiting (Administração)
+```
+GET /api/v1/admin/rate-limit/stats
+```
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Estatísticas do rate limiter obtidas com sucesso",
+  "data": {
+    "email_limiters_count": 2,
+    "ip_limiters_count": 1,
+    "ip_requests_limit": 100,
+    "ip_window": "1m0s",
+    "login_attempts_limit": 5,
+    "login_window": "15m0s",
+    "reset_attempts_limit": 3,
+    "reset_window": "1h0m0s"
+  }
+}
+```
+
 ### Obter Informações da Carteira
 ```
 GET /api/v1/wallets
@@ -330,6 +353,10 @@ Authorization: Bearer <token>
 - **Autenticação**: Sistema de login com email e senha
 - **JWT**: Tokens JWT para sessões seguras (expira em 24 horas)
 - **Middleware**: Autenticação obrigatória para endpoints protegidos
+- **Rate Limiting**: Proteção contra ataques de força bruta e abuso da API
+  - **Login**: 5 tentativas por 15 minutos por email
+  - **Recuperação de Senha**: 3 tentativas por hora por email
+  - **IP**: 100 requisições por minuto por IP
 - **Recuperação de Senha**: Sistema seguro de reset com tokens únicos (expira em 1 hora)
 - **Limpeza Automática**: Remoção automática de tokens expirados a cada hora
 - **Logs**: Operações importantes são logadas para auditoria

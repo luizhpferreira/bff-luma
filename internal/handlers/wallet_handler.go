@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -14,13 +15,15 @@ import (
 type WalletHandler struct {
 	walletService  *services.WalletService
 	cleanupService *services.CleanupService
+	rateLimiter    *services.RateLimiter
 }
 
 // NewWalletHandler cria um novo handler de carteiras
-func NewWalletHandler(walletService *services.WalletService, cleanupService *services.CleanupService) *WalletHandler {
+func NewWalletHandler(walletService *services.WalletService, cleanupService *services.CleanupService, rateLimiter *services.RateLimiter) *WalletHandler {
 	return &WalletHandler{
 		walletService:  walletService,
 		cleanupService: cleanupService,
+		rateLimiter:    rateLimiter,
 	}
 }
 
@@ -83,6 +86,13 @@ func (h *WalletHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if req.Password == "" {
 		respondWithError(w, http.StatusBadRequest, "password é obrigatório", "")
+		return
+	}
+
+	// Verifica rate limit por email
+	if !h.rateLimiter.AllowLogin(req.Email) {
+		remaining := h.rateLimiter.GetRemainingAttempts(req.Email)
+		respondWithError(w, http.StatusTooManyRequests, "Muitas tentativas de login. Tente novamente em 15 minutos.", fmt.Sprintf("Tentativas restantes: %d", remaining))
 		return
 	}
 
@@ -149,6 +159,13 @@ func (h *WalletHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	// Validação básica
 	if req.Email == "" {
 		respondWithError(w, http.StatusBadRequest, "email é obrigatório", "")
+		return
+	}
+
+	// Verifica rate limit para reset de senha
+	if !h.rateLimiter.AllowPasswordReset(req.Email) {
+		remaining := h.rateLimiter.GetRemainingPasswordResets(req.Email)
+		respondWithError(w, http.StatusTooManyRequests, "Muitas tentativas de recuperação de senha. Tente novamente em 1 hora.", fmt.Sprintf("Tentativas restantes: %d", remaining))
 		return
 	}
 
@@ -237,6 +254,17 @@ func (h *WalletHandler) GetCleanupStats(w http.ResponseWriter, r *http.Request) 
 	}
 
 	respondWithSuccess(w, http.StatusOK, "Estatísticas obtidas com sucesso", stats)
+}
+
+// GetRateLimitStats retorna estatísticas do rate limiter
+func (h *WalletHandler) GetRateLimitStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	stats := h.rateLimiter.GetStats()
+	respondWithSuccess(w, http.StatusOK, "Estatísticas do rate limiter obtidas com sucesso", stats)
 }
 
 // CreateInvoice cria um invoice para receber pagamento
