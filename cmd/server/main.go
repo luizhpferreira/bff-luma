@@ -35,7 +35,8 @@ func main() {
 	lnbitsService := services.NewLNBitsService(cfg.LNBitsBaseURL, cfg.LNBitsAdminKey, cfg.LNBitsWebhookSecret)
 	jwtService := services.NewJWTService(cfg.JWTSecret)
 	emailService := services.NewEmailService()
-	walletService := services.NewWalletService(db, lnbitsService, jwtService, emailService)
+	passwordService := services.NewPasswordService()
+	walletService := services.NewWalletService(db, lnbitsService, jwtService, emailService, passwordService)
 
 	// Inicializa handlers
 	walletHandler := handlers.NewWalletHandler(walletService)

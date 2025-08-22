@@ -289,7 +289,7 @@ Authorization: Bearer <token>
 ## 🔒 Segurança
 
 - **Chaves Protegidas**: As chaves Admin e Invoice das carteiras são armazenadas apenas no backend
-- **Senhas**: As senhas são armazenadas no banco de dados (em produção, deve ser hash)
+- **Senhas**: As senhas são armazenadas com hash bcrypt (custo 12) no banco de dados
 - **Validação**: Todos os inputs são validados antes do processamento
 - **Autenticação**: Sistema de login com email e senha
 - **JWT**: Tokens JWT para sessões seguras (expira em 24 horas)
@@ -297,6 +297,39 @@ Authorization: Bearer <token>
 - **Recuperação de Senha**: Sistema seguro de reset com tokens únicos (expira em 1 hora)
 - **Logs**: Operações importantes são logadas para auditoria
 - **CORS**: Configurado para permitir requisições cross-origin
+
+## 🔐 Requisitos de Senha Forte
+
+Para garantir a segurança das contas, todas as senhas devem atender aos seguintes requisitos:
+
+### 📋 Regras Obrigatórias:
+- **Mínimo 8 caracteres**
+- **Pelo menos 1 letra maiúscula** (A-Z)
+- **Pelo menos 1 letra minúscula** (a-z)
+- **Pelo menos 1 número** (0-9)
+- **Pelo menos 1 caractere especial** (!@#$%^&*()_+-=[]{}|;:,.<>?)
+
+### 🚫 Restrições:
+- **Não pode conter sequências comuns** como "123", "abc", "password", "senha"
+- **Não pode ter mais de 2 caracteres idênticos consecutivos** (ex: "aaa", "111")
+
+### 🔒 Armazenamento Seguro:
+- **Hash bcrypt** com custo 12 (padrão de segurança)
+- **Salt único** para cada senha
+- **Impossível reverter** o hash para obter a senha original
+
+### ✅ Exemplos de Senhas Válidas:
+- `B@nco2024!`
+- `MinhaSenha@123`
+- `Secure#Pass1`
+- `P@ssw0rd!`
+
+### ❌ Exemplos de Senhas Inválidas:
+- `12345678` (só números, sem maiúsculas/minúsculas/especiais)
+- `password` (sequência comum, sem números/especiais)
+- `Senha123` (sem caracteres especiais)
+- `B@nco2024` (sem caracteres especiais)
+- `aaa@Bc123` (3 'a' consecutivos)
 
 ## 🗄️ Banco de Dados
 

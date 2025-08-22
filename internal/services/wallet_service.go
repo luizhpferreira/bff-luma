@@ -3,9 +3,7 @@ package services
 import (
 	"fmt"
 	"log"
-	"strings"
 	"time"
-	"unicode"
 
 	"github.com/google/uuid"
 
@@ -19,83 +17,21 @@ type WalletService struct {
 	lnbits   *LNBitsService
 	jwt      *JWTService
 	email    *EmailService
+	password *PasswordService
 }
 
 // NewWalletService cria um novo serviço de carteiras
-func NewWalletService(db *database.Database, lnbits *LNBitsService, jwt *JWTService, email *EmailService) *WalletService {
+func NewWalletService(db *database.Database, lnbits *LNBitsService, jwt *JWTService, email *EmailService, password *PasswordService) *WalletService {
 	return &WalletService{
-		db:     db,
-		lnbits: lnbits,
-		jwt:    jwt,
-		email:  email,
+		db:       db,
+		lnbits:   lnbits,
+		jwt:      jwt,
+		email:    email,
+		password: password,
 	}
 }
 
-// validateStrongPassword valida se a senha é forte
-func validateStrongPassword(password string) error {
-	if len(password) < 8 {
-		return fmt.Errorf("a senha deve ter pelo menos 8 caracteres")
-	}
 
-	var (
-		hasUpper   bool
-		hasLower   bool
-		hasNumber  bool
-		hasSpecial bool
-	)
-
-	for _, char := range password {
-		switch {
-		case unicode.IsUpper(char):
-			hasUpper = true
-		case unicode.IsLower(char):
-			hasLower = true
-		case unicode.IsNumber(char):
-			hasNumber = true
-		case unicode.IsPunct(char) || unicode.IsSymbol(char):
-			hasSpecial = true
-		}
-	}
-
-	var errors []string
-
-	if !hasUpper {
-		errors = append(errors, "pelo menos uma letra maiúscula")
-	}
-	if !hasLower {
-		errors = append(errors, "pelo menos uma letra minúscula")
-	}
-	if !hasNumber {
-		errors = append(errors, "pelo menos um número")
-	}
-	if !hasSpecial {
-		errors = append(errors, "pelo menos um caractere especial")
-	}
-
-	// Verificar sequências comuns
-	commonSequences := []string{"123", "abc", "qwe", "asd", "zxc", "password", "senha"}
-	passwordLower := strings.ToLower(password)
-	for _, seq := range commonSequences {
-		if strings.Contains(passwordLower, seq) {
-			errors = append(errors, "não pode conter sequências comuns")
-			break
-		}
-	}
-
-	// Verificar caracteres repetidos
-	for i := 0; i < len(password)-2; i++ {
-		if password[i] == password[i+1] && password[i] == password[i+2] {
-			errors = append(errors, "não pode ter mais de 2 caracteres iguais consecutivos")
-			break
-		}
-	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf("senha fraca: %s", strings.Join(errors, ", "))
-	}
-
-	return nil
-}
 
 // CreateWallet cria uma nova carteira para um usuário
 func (s *WalletService) CreateWallet(req *models.CreateWalletRequest) (*models.CreateWalletResponse, error) {
@@ -105,7 +41,7 @@ func (s *WalletService) CreateWallet(req *models.CreateWalletRequest) (*models.C
 	}
 
 	// Valida se a senha é forte
-	if err := validateStrongPassword(req.Password); err != nil {
+	if err := s.password.ValidatePasswordStrength(req.Password); err != nil {
 		return nil, fmt.Errorf("erro na validação da senha: %w", err)
 	}
 
@@ -125,9 +61,15 @@ func (s *WalletService) CreateWallet(req *models.CreateWalletRequest) (*models.C
 		return nil, fmt.Errorf("erro ao criar carteira no LNBits: %w", err)
 	}
 
-	// Associa o email e senha à carteira
+	// Gera hash da senha
+	hashedPassword, err := s.password.HashPassword(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao gerar hash da senha: %w", err)
+	}
+
+	// Associa o email e senha hash à carteira
 	wallet.Email = req.Email
-	wallet.Password = req.Password // Em produção, deve ser hash da senha
+	wallet.Password = hashedPassword
 
 	// Salva no banco de dados
 	if err := s.db.CreateWallet(wallet); err != nil {
@@ -200,8 +142,8 @@ func (s *WalletService) Login(req *models.LoginRequest) (*models.LoginResponse, 
 		return nil, fmt.Errorf("carteira não encontrada para o email %s", req.Email)
 	}
 
-	// Verifica a senha (em produção, deve comparar hash)
-	if wallet.Password != req.Password {
+	// Verifica a senha usando bcrypt
+	if err := s.password.CheckPassword(req.Password, wallet.Password); err != nil {
 		return nil, fmt.Errorf("senha incorreta")
 	}
 
@@ -294,7 +236,7 @@ func (s *WalletService) ResetPassword(req *models.ResetPasswordRequest) (*models
 	}
 
 	// Valida força da senha
-	if err := validateStrongPassword(req.NewPassword); err != nil {
+	if err := s.password.ValidatePasswordStrength(req.NewPassword); err != nil {
 		return nil, fmt.Errorf("senha não atende aos requisitos de segurança: %w", err)
 	}
 
@@ -316,8 +258,14 @@ func (s *WalletService) ResetPassword(req *models.ResetPasswordRequest) (*models
 		return nil, fmt.Errorf("token expirado")
 	}
 
+	// Gera hash da nova senha
+	hashedPassword, err := s.password.HashPassword(req.NewPassword)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao gerar hash da senha: %w", err)
+	}
+
 	// Atualiza senha
-	err = s.db.UpdatePassword(email, req.NewPassword)
+	err = s.db.UpdatePassword(email, hashedPassword)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao atualizar senha: %w", err)
 	}
