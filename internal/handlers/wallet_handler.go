@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
+	"bff-luma/internal/middleware"
 	"bff-luma/internal/models"
 	"bff-luma/internal/services"
 )
@@ -91,6 +93,44 @@ func (h *WalletHandler) Login(w http.ResponseWriter, r *http.Request) {
 	respondWithSuccess(w, http.StatusOK, "Login realizado com sucesso", response)
 }
 
+// RefreshToken renova um token JWT
+func (h *WalletHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extrai o token do header Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		respondWithError(w, http.StatusUnauthorized, "Token de autorização não fornecido", "")
+		return
+	}
+
+	// Verifica se o header tem o formato "Bearer <token>"
+	tokenParts := strings.Split(authHeader, " ")
+	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+		respondWithError(w, http.StatusUnauthorized, "Formato de autorização inválido. Use: Bearer <token>", "")
+		return
+	}
+
+	tokenString := tokenParts[1]
+
+	// Renova o token
+	newToken, err := h.walletService.RefreshToken(tokenString)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Erro ao renovar token", err.Error())
+		return
+	}
+
+	response := map[string]interface{}{
+		"token":   newToken,
+		"message": "Token renovado com sucesso",
+	}
+
+	respondWithSuccess(w, http.StatusOK, "Token renovado com sucesso", response)
+}
+
 // CreateInvoice cria um invoice para receber pagamento
 func (h *WalletHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -104,11 +144,15 @@ func (h *WalletHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validação básica
-	if req.Email == "" {
-		respondWithError(w, http.StatusBadRequest, "email é obrigatório", "")
+	// Obtém o email do contexto JWT
+	email := middleware.GetUserEmail(r)
+	if email == "" {
+		respondWithError(w, http.StatusUnauthorized, "Usuário não autenticado", "")
 		return
 	}
+
+	// Usa o email do JWT em vez do email da requisição
+	req.Email = email
 
 	if req.Amount <= 0 {
 		respondWithError(w, http.StatusBadRequest, "amount deve ser maior que zero", "")
@@ -131,15 +175,15 @@ func (h *WalletHandler) CheckPaymentStatus(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Extrai parâmetros da query string
-	email := r.URL.Query().Get("email")
-	paymentHash := r.URL.Query().Get("payment_hash")
-
+	// Obtém o email do contexto JWT
+	email := middleware.GetUserEmail(r)
 	if email == "" {
-		respondWithError(w, http.StatusBadRequest, "email é obrigatório", "")
+		respondWithError(w, http.StatusUnauthorized, "Usuário não autenticado", "")
 		return
 	}
 
+	// Extrai payment_hash da query string
+	paymentHash := r.URL.Query().Get("payment_hash")
 	if paymentHash == "" {
 		respondWithError(w, http.StatusBadRequest, "payment_hash é obrigatório", "")
 		return
@@ -161,9 +205,10 @@ func (h *WalletHandler) GetWalletInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := r.URL.Query().Get("email")
+	// Obtém o email do contexto JWT
+	email := middleware.GetUserEmail(r)
 	if email == "" {
-		respondWithError(w, http.StatusBadRequest, "email é obrigatório", "")
+		respondWithError(w, http.StatusUnauthorized, "Usuário não autenticado", "")
 		return
 	}
 

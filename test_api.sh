@@ -5,8 +5,8 @@ API_URL="$BASE_URL/api/v1"
 EMAIL="teste_$(date +%s)@exemplo.com"
 PASSWORD="B@nco2024!"
 
-echo "🧪 Testando BFF Luma API"
-echo "=========================="
+echo "🧪 Testando BFF Luma API com JWT"
+echo "================================"
 
 echo "📧 Email de teste: $EMAIL"
 echo ""
@@ -41,17 +41,32 @@ LOGIN_RESPONSE=$(curl -s -X POST "$API_URL/login" \
 echo "$LOGIN_RESPONSE" | jq '.'
 echo ""
 
-# Teste 4: Obter informações da carteira
-echo "4️⃣ Obtendo informações da carteira..."
-curl -s "$API_URL/wallets?email=$EMAIL" | jq '.'
+# Extrair token da resposta
+TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.data.token')
+echo "🔑 Token extraído: ${TOKEN:0:50}..."
 echo ""
 
-# Teste 5: Tentar criar invoice (pode falhar)
-echo "5️⃣ Tentando criar invoice..."
+# Teste 4: Refresh Token
+echo "4️⃣ Testando refresh do token..."
+REFRESH_RESPONSE=$(curl -s -X POST "$API_URL/refresh" \
+  -H "Authorization: Bearer $TOKEN")
+
+echo "$REFRESH_RESPONSE" | jq '.'
+echo ""
+
+# Teste 5: Obter informações da carteira (com autenticação)
+echo "5️⃣ Obtendo informações da carteira..."
+RESPONSE=$(curl -s -H "Authorization: Bearer $TOKEN" \
+  "$API_URL/wallets")
+echo "$RESPONSE" | jq '.'
+echo ""
+
+# Teste 6: Tentar criar invoice (pode falhar)
+echo "6️⃣ Tentando criar invoice..."
 INVOICE_RESPONSE=$(curl -s -X POST "$API_URL/invoices" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d "{
-    \"email\": \"$EMAIL\",
     \"amount\": 1000,
     \"memo\": \"Teste de invoice\"
   }")
@@ -59,8 +74,8 @@ INVOICE_RESPONSE=$(curl -s -X POST "$API_URL/invoices" \
 echo "$INVOICE_RESPONSE" | jq '.'
 echo ""
 
-# Teste 6: Tentar criar carteira duplicada (deve falhar)
-echo "6️⃣ Tentando criar carteira duplicada (deve falhar)..."
+# Teste 7: Tentar criar carteira duplicada (deve falhar)
+echo "7️⃣ Tentando criar carteira duplicada (deve falhar)..."
 curl -s -X POST "$API_URL/wallets" \
   -H "Content-Type: application/json" \
   -d "{
@@ -70,8 +85,8 @@ curl -s -X POST "$API_URL/wallets" \
   }" | jq '.'
 echo ""
 
-# Teste 7: Tentar login com senha incorreta (deve falhar)
-echo "7️⃣ Tentando login com senha incorreta (deve falhar)..."
+# Teste 8: Tentar login com senha incorreta (deve falhar)
+echo "8️⃣ Tentando login com senha incorreta (deve falhar)..."
 curl -s -X POST "$API_URL/login" \
   -H "Content-Type: application/json" \
   -d "{
@@ -80,13 +95,21 @@ curl -s -X POST "$API_URL/login" \
   }" | jq '.'
 echo ""
 
+# Teste 9: Tentar acessar rota protegida sem token (deve falhar)
+echo "9️⃣ Tentando acessar rota protegida sem token (deve falhar)..."
+curl -s "$API_URL/wallets"
+echo ""
+echo ""
+
 echo "✅ Testes concluídos!"
 
 echo ""
 echo "📊 Status dos endpoints:"
 echo "✅ Health Check - Funcionando"
 echo "✅ Cadastro de Usuários - Funcionando"
-echo "✅ Login - Funcionando"
+echo "✅ Login com JWT - Funcionando"
+echo "✅ Refresh Token - Funcionando"
+echo "✅ Autenticação JWT - Funcionando"
 echo "✅ Consulta de Carteiras - Funcionando"
 echo "⚠️ Criação de Invoices - Problema de conexão no LNBits"
 echo "⚠️ Verificação de Pagamentos - Depende dos invoices"

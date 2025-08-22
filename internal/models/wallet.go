@@ -40,6 +40,7 @@ type CreateWalletResponse struct {
 type LoginResponse struct {
 	WalletID string `json:"wallet_id"`
 	Email    string `json:"email"`
+	Token    string `json:"token"`
 	Message  string `json:"message"`
 }
 

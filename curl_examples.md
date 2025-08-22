@@ -44,14 +44,34 @@ curl -X POST http://localhost:8080/api/v1/login \
   "data": {
     "wallet_id": "4aef1b41b711488583cc4f5b500b02fc",
     "email": "usuario@exemplo.com",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "message": "Login realizado com sucesso"
   }
 }
 ```
 
-### 3. Obter Informações da Carteira
+### 3. Refresh Token
 ```bash
-curl "http://localhost:8080/api/v1/wallets?email=usuario@exemplo.com"
+curl -X POST http://localhost:8080/api/v1/refresh \
+  -H "Authorization: Bearer <seu_token_aqui>"
+```
+
+**Resposta esperada:**
+```json
+{
+  "success": true,
+  "message": "Token renovado com sucesso",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "message": "Token renovado com sucesso"
+  }
+}
+```
+
+### 4. Obter Informações da Carteira
+```bash
+curl -H "Authorization: Bearer <seu_token_aqui>" \
+  "http://localhost:8080/api/v1/wallets"
 ```
 
 **Resposta esperada:**
@@ -71,12 +91,12 @@ curl "http://localhost:8080/api/v1/wallets?email=usuario@exemplo.com"
 
 ## ⚠️ Endpoints com Problemas de Conexão LNBits
 
-### 4. Criar Invoice
+### 5. Criar Invoice
 ```bash
 curl -X POST http://localhost:8080/api/v1/invoices \
+  -H "Authorization: Bearer <seu_token_aqui>" \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "usuario@exemplo.com",
     "amount": 1000,
     "memo": "Teste de invoice"
   }'
@@ -91,9 +111,10 @@ curl -X POST http://localhost:8080/api/v1/invoices \
 }
 ```
 
-### 5. Verificar Status do Pagamento
+### 6. Verificar Status do Pagamento
 ```bash
-curl "http://localhost:8080/api/v1/payments/status?email=usuario@exemplo.com&payment_hash=abc123"
+curl -H "Authorization: Bearer <seu_token_aqui>" \
+  "http://localhost:8080/api/v1/payments/status?payment_hash=abc123"
 ```
 
 **Erro esperado (problema de conexão LNBits):**

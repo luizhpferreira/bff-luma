@@ -12,6 +12,7 @@ import (
 	"bff-luma/internal/config"
 	"bff-luma/internal/database"
 	"bff-luma/internal/handlers"
+	authmiddleware "bff-luma/internal/middleware"
 	"bff-luma/internal/services"
 
 	"github.com/go-chi/chi/v5"
@@ -32,7 +33,8 @@ func main() {
 
 	// Inicializa serviços
 	lnbitsService := services.NewLNBitsService(cfg.LNBitsBaseURL, cfg.LNBitsAdminKey, cfg.LNBitsWebhookSecret)
-	walletService := services.NewWalletService(db, lnbitsService)
+	jwtService := services.NewJWTService(cfg.JWTSecret)
+	walletService := services.NewWalletService(db, lnbitsService, jwtService)
 
 	// Inicializa handlers
 	walletHandler := handlers.NewWalletHandler(walletService)
@@ -62,14 +64,19 @@ func main() {
 
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {
-		// Rotas de carteira
+		// Rotas públicas (não precisam de autenticação)
 		r.Post("/wallets", walletHandler.CreateWallet)
 		r.Post("/login", walletHandler.Login)
-		r.Get("/wallets", walletHandler.GetWalletInfo)
+		r.Post("/refresh", walletHandler.RefreshToken)
 		
-		// Rotas de invoice
-		r.Post("/invoices", walletHandler.CreateInvoice)
-		r.Get("/payments/status", walletHandler.CheckPaymentStatus)
+		// Rotas protegidas (precisam de autenticação)
+		r.Group(func(r chi.Router) {
+			r.Use(authmiddleware.AuthMiddleware(jwtService))
+			
+			r.Get("/wallets", walletHandler.GetWalletInfo)
+			r.Post("/invoices", walletHandler.CreateInvoice)
+			r.Get("/payments/status", walletHandler.CheckPaymentStatus)
+		})
 	})
 
 	// Configura servidor

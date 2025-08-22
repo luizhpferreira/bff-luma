@@ -14,13 +14,15 @@ import (
 type WalletService struct {
 	db       *database.Database
 	lnbits   *LNBitsService
+	jwt      *JWTService
 }
 
 // NewWalletService cria um novo serviço de carteiras
-func NewWalletService(db *database.Database, lnbits *LNBitsService) *WalletService {
+func NewWalletService(db *database.Database, lnbits *LNBitsService, jwt *JWTService) *WalletService {
 	return &WalletService{
 		db:     db,
 		lnbits: lnbits,
+		jwt:    jwt,
 	}
 }
 
@@ -198,9 +200,16 @@ func (s *WalletService) Login(req *models.LoginRequest) (*models.LoginResponse, 
 		return nil, fmt.Errorf("senha incorreta")
 	}
 
+	// Gera token JWT
+	token, err := s.jwt.GenerateToken(wallet.Email, wallet.WalletID)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao gerar token: %w", err)
+	}
+
 	response := &models.LoginResponse{
 		WalletID: wallet.WalletID,
 		Email:    wallet.Email,
+		Token:    token,
 		Message:  "Login realizado com sucesso",
 	}
 
@@ -224,4 +233,9 @@ func (s *WalletService) GetWalletInfo(email string) (*models.Wallet, error) {
 	wallet.Password = ""
 
 	return wallet, nil
+}
+
+// RefreshToken renova um token JWT
+func (s *WalletService) RefreshToken(tokenString string) (string, error) {
+	return s.jwt.RefreshToken(tokenString)
 }

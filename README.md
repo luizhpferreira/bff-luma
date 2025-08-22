@@ -126,14 +126,42 @@ POST /api/v1/login
   "data": {
     "wallet_id": "abc123def456",
     "email": "usuario@exemplo.com",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "message": "Login realizado com sucesso"
+  }
+}
+```
+
+### Refresh Token
+```
+POST /api/v1/refresh
+```
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Token renovado com sucesso",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "message": "Token renovado com sucesso"
   }
 }
 ```
 
 ### Obter Informações da Carteira
 ```
-GET /api/v1/wallets?email=usuario@exemplo.com
+GET /api/v1/wallets
+```
+
+**Headers:**
+```
+Authorization: Bearer <token>
 ```
 
 **Resposta:**
@@ -156,10 +184,14 @@ GET /api/v1/wallets?email=usuario@exemplo.com
 POST /api/v1/invoices
 ```
 
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
 **Request Body:**
 ```json
 {
-  "email": "usuario@exemplo.com",
   "amount": 1000,
   "memo": "Pagamento teste"
 }
@@ -182,7 +214,12 @@ POST /api/v1/invoices
 
 ### Verificar Status do Pagamento
 ```
-GET /api/v1/payments/status?email=usuario@exemplo.com&payment_hash=abc123def456
+GET /api/v1/payments/status?payment_hash=abc123def456
+```
+
+**Headers:**
+```
+Authorization: Bearer <token>
 ```
 
 **Resposta:**
@@ -207,6 +244,8 @@ GET /api/v1/payments/status?email=usuario@exemplo.com&payment_hash=abc123def456
 - **Senhas**: As senhas são armazenadas no banco de dados (em produção, deve ser hash)
 - **Validação**: Todos os inputs são validados antes do processamento
 - **Autenticação**: Sistema de login com email e senha
+- **JWT**: Tokens JWT para sessões seguras (expira em 24 horas)
+- **Middleware**: Autenticação obrigatória para endpoints protegidos
 - **Logs**: Operações importantes são logadas para auditoria
 - **CORS**: Configurado para permitir requisições cross-origin
 
@@ -240,16 +279,17 @@ CREATE TABLE wallets (
 2. **Login**:
    - Frontend envia `email` + `password`
    - Backend verifica credenciais no banco
-   - Backend retorna `wallet_id` e confirmação
+   - Backend gera token JWT e retorna `wallet_id`, `token` e confirmação
 
 3. **Criação de Invoice**:
-   - Frontend envia `email` e `amount`
+   - Frontend envia `Authorization: Bearer <token>` + `amount`
+   - Backend valida token JWT e extrai email
    - Backend busca `invoice_key` no banco
    - Backend chama LNBits com `invoice_key`
    - Frontend recebe `payment_request` (BOLT11)
 
 4. **Verificação de Pagamento**:
-   - Frontend envia `email` + `payment_hash`
+   - Frontend envia `Authorization: Bearer <token>` + `payment_hash`
    - Backend busca `invoice_key` e verifica no LNBits
    - Frontend recebe status do pagamento
 
