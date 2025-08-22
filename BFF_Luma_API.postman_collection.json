@@ -1,0 +1,190 @@
+{
+	"info": {
+		"name": "BFF Luma API",
+		"description": "API BFF para integração com LNBits - Gerenciamento de Carteiras Lightning\n\n✅ Funcionando:\n- Health Check\n- Cadastro de Usuários\n- Login\n- Consulta de Carteiras\n\n⚠️ Em desenvolvimento:\n- Criação de Invoices (problema de conexão no LNBits)\n- Verificação de Pagamentos",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "api_url",
+			"value": "{{base_url}}/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "email",
+			"value": "teste@exemplo.com",
+			"type": "string"
+		},
+		{
+			"key": "password",
+			"value": "123456",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": ["{{base_url}}"],
+					"path": ["health"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Criar Carteira (Cadastro)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\",\n    \"password_repeat\": \"{{password}}\"\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/wallets",
+					"host": ["{{api_url}}"],
+					"path": ["wallets"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/login",
+					"host": ["{{api_url}}"],
+					"path": ["login"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Obter Informações da Carteira",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{api_url}}/wallets?email={{email}}",
+					"host": ["{{api_url}}"],
+					"path": ["wallets"],
+					"query": [
+						{
+							"key": "email",
+							"value": "{{email}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Criar Invoice (⚠️ Problema de conexão)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"{{email}}\",\n    \"amount\": 1000,\n    \"memo\": \"Pagamento de teste - Postman\"\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/invoices",
+					"host": ["{{api_url}}"],
+					"path": ["invoices"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Verificar Status do Pagamento (⚠️ Depende do Invoice)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{api_url}}/payments/status?email={{email}}&payment_hash=PAYMENT_HASH_AQUI",
+					"host": ["{{api_url}}"],
+					"path": ["payments", "status"],
+					"query": [
+						{
+							"key": "email",
+							"value": "{{email}}"
+						},
+						{
+							"key": "payment_hash",
+							"value": "PAYMENT_HASH_AQUI",
+							"description": "Substitua pelo payment_hash retornado na criação do invoice"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Teste - Criar Carteira com Email Único",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"teste_$(new Date().getTime())@exemplo.com\",\n    \"password\": \"123456\",\n    \"password_repeat\": \"123456\"\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/wallets",
+					"host": ["{{api_url}}"],
+					"path": ["wallets"]
+				}
+			},
+			"response": []
+		}
+	]
+}

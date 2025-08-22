@@ -1,0 +1,112 @@
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"bff-luma/internal/config"
+	"bff-luma/internal/database"
+	"bff-luma/internal/handlers"
+	"bff-luma/internal/services"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+)
+
+func main() {
+	// Carrega configurações
+	cfg := config.LoadConfig()
+
+	// Inicializa banco de dados
+	db, err := database.NewDatabase(cfg.DatabasePath)
+	if err != nil {
+		log.Fatalf("Erro ao inicializar banco de dados: %v", err)
+	}
+	defer db.Close()
+
+	// Inicializa serviços
+	lnbitsService := services.NewLNBitsService(cfg.LNBitsBaseURL, cfg.LNBitsAdminKey, cfg.LNBitsWebhookSecret)
+	walletService := services.NewWalletService(db, lnbitsService)
+
+	// Inicializa handlers
+	walletHandler := handlers.NewWalletHandler(walletService)
+
+	// Configura roteador
+	r := chi.NewRouter()
+
+	// Middleware
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Timeout(60 * time.Second))
+
+	// CORS
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
+
+	// Rotas
+	r.Get("/health", walletHandler.HealthCheck)
+
+	// API v1
+	r.Route("/api/v1", func(r chi.Router) {
+		// Rotas de carteira
+		r.Post("/wallets", walletHandler.CreateWallet)
+		r.Post("/login", walletHandler.Login)
+		r.Get("/wallets", walletHandler.GetWalletInfo)
+		
+		// Rotas de invoice
+		r.Post("/invoices", walletHandler.CreateInvoice)
+		r.Get("/payments/status", walletHandler.CheckPaymentStatus)
+	})
+
+	// Configura servidor
+	srv := &http.Server{
+		Addr:         ":" + cfg.AppPort,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	// Canal para receber sinais de interrupção
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	// Inicia servidor em goroutine
+	go func() {
+		log.Printf("🚀 Servidor BFF Luma iniciado na porta %s", cfg.AppPort)
+		log.Printf("📊 Health check: http://localhost:%s/health", cfg.AppPort)
+		log.Printf("💳 API v1: http://localhost:%s/api/v1", cfg.AppPort)
+		
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Erro ao iniciar servidor: %v", err)
+		}
+	}()
+
+	// Aguarda sinal de interrupção
+	<-stop
+	log.Println("🛑 Recebido sinal de interrupção, encerrando servidor...")
+
+	// Shutdown graceful
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("Erro durante shutdown: %v", err)
+	}
+
+	log.Println("✅ Servidor encerrado com sucesso")
+}
