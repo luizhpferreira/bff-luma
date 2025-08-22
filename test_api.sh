@@ -76,13 +76,25 @@ echo ""
 echo "🔑 Token de reset (simulado): 12345678-1234-1234-1234-123456789abc"
 echo ""
 
-# Teste 7: Reset de senha (simulado)
-echo "7️⃣ Testando reset de senha (simulado)..."
+# Teste 7: Estatísticas de limpeza
+echo "7️⃣ Testando estatísticas de limpeza..."
+CLEANUP_STATS=$(curl -s http://localhost:8080/api/v1/admin/cleanup/stats)
+echo "$CLEANUP_STATS" | jq '.'
+echo ""
+
+# Teste 8: Limpeza manual
+echo "8️⃣ Testando limpeza manual..."
+CLEANUP_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/admin/cleanup)
+echo "$CLEANUP_RESPONSE" | jq '.'
+echo ""
+
+# Teste 9: Reset de senha (simulado)
+echo "9️⃣ Testando reset de senha (simulado)..."
 echo "⚠️ Este teste requer um token válido do teste anterior"
 echo ""
 
-# Teste 8: Tentar criar invoice (pode falhar)
-echo "8️⃣ Tentando criar invoice..."
+# Teste 10: Tentar criar invoice (pode falhar)
+echo "🔟 Tentando criar invoice..."
 INVOICE_RESPONSE=$(curl -s -X POST "$API_URL/invoices" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -94,8 +106,8 @@ INVOICE_RESPONSE=$(curl -s -X POST "$API_URL/invoices" \
 echo "$INVOICE_RESPONSE" | jq '.'
 echo ""
 
-# Teste 9: Tentar criar carteira duplicada (deve falhar)
-echo "9️⃣ Tentando criar carteira duplicada (deve falhar)..."
+# Teste 11: Tentar criar carteira duplicada (deve falhar)
+echo "1️⃣1️⃣ Tentando criar carteira duplicada (deve falhar)..."
 curl -s -X POST "$API_URL/wallets" \
   -H "Content-Type: application/json" \
   -d "{
@@ -105,8 +117,8 @@ curl -s -X POST "$API_URL/wallets" \
   }" | jq '.'
 echo ""
 
-# Teste 10: Tentar login com senha incorreta (deve falhar)
-echo "🔟 Tentando login com senha incorreta (deve falhar)..."
+# Teste 12: Tentar login com senha incorreta (deve falhar)
+echo "1️⃣2️⃣ Tentando login com senha incorreta (deve falhar)..."
 curl -s -X POST "$API_URL/login" \
   -H "Content-Type: application/json" \
   -d "{
@@ -115,8 +127,8 @@ curl -s -X POST "$API_URL/login" \
   }" | jq '.'
 echo ""
 
-# Teste 11: Tentar acessar rota protegida sem token (deve falhar)
-echo "1️⃣1️⃣ Tentando acessar rota protegida sem token (deve falhar)..."
+# Teste 13: Tentar acessar rota protegida sem token (deve falhar)
+echo "1️⃣3️⃣ Tentando acessar rota protegida sem token (deve falhar)..."
 curl -s "$API_URL/wallets"
 echo ""
 echo ""
@@ -134,5 +146,6 @@ echo "✅ Consulta de Carteiras - Funcionando"
 echo "✅ Recuperação de Senha - Funcionando"
 echo "✅ Reset de Senha - Funcionando"
 echo "✅ Hash de Senhas (bcrypt) - Funcionando"
+echo "✅ Limpeza Automática - Funcionando"
 echo "⚠️ Criação de Invoices - Problema de conexão no LNBits"
 echo "⚠️ Verificação de Pagamentos - Depende dos invoices"

@@ -202,6 +202,42 @@ POST /api/v1/reset-password
 }
 ```
 
+### Limpeza de Tokens (Administração)
+```
+POST /api/v1/admin/cleanup
+```
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Limpeza executada com sucesso",
+  "data": {
+    "expired_tokens": 0,
+    "interval": "1h0m0s",
+    "is_running": true
+  }
+}
+```
+
+### Estatísticas de Limpeza (Administração)
+```
+GET /api/v1/admin/cleanup/stats
+```
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Estatísticas obtidas com sucesso",
+  "data": {
+    "expired_tokens": 0,
+    "interval": "1h0m0s",
+    "is_running": true
+  }
+}
+```
+
 ### Obter Informações da Carteira
 ```
 GET /api/v1/wallets
@@ -295,6 +331,7 @@ Authorization: Bearer <token>
 - **JWT**: Tokens JWT para sessões seguras (expira em 24 horas)
 - **Middleware**: Autenticação obrigatória para endpoints protegidos
 - **Recuperação de Senha**: Sistema seguro de reset com tokens únicos (expira em 1 hora)
+- **Limpeza Automática**: Remoção automática de tokens expirados a cada hora
 - **Logs**: Operações importantes são logadas para auditoria
 - **CORS**: Configurado para permitir requisições cross-origin
 

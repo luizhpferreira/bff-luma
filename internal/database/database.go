@@ -217,6 +217,36 @@ func (d *Database) UpdatePassword(email, newPassword string) error {
 	return nil
 }
 
+// CleanExpiredTokens remove tokens de reset expirados
+func (d *Database) CleanExpiredTokens() (int64, error) {
+	query := `DELETE FROM reset_tokens WHERE expires_at < ?`
+
+	result, err := d.db.Exec(query, time.Now())
+	if err != nil {
+		return 0, fmt.Errorf("erro ao limpar tokens expirados: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("erro ao obter número de linhas afetadas: %w", err)
+	}
+
+	return rowsAffected, nil
+}
+
+// GetExpiredTokensCount retorna o número de tokens expirados
+func (d *Database) GetExpiredTokensCount() (int64, error) {
+	query := `SELECT COUNT(*) FROM reset_tokens WHERE expires_at < ?`
+
+	var count int64
+	err := d.db.QueryRow(query, time.Now()).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("erro ao contar tokens expirados: %w", err)
+	}
+
+	return count, nil
+}
+
 // Close fecha a conexão com o banco de dados
 func (d *Database) Close() error {
 	log.Println("Fechando conexão com banco de dados...")

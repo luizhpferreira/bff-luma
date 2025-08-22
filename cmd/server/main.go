@@ -36,10 +36,14 @@ func main() {
 	jwtService := services.NewJWTService(cfg.JWTSecret)
 	emailService := services.NewEmailService()
 	passwordService := services.NewPasswordService()
+	cleanupService := services.NewCleanupService(db)
 	walletService := services.NewWalletService(db, lnbitsService, jwtService, emailService, passwordService)
 
 	// Inicializa handlers
-	walletHandler := handlers.NewWalletHandler(walletService)
+	walletHandler := handlers.NewWalletHandler(walletService, cleanupService)
+
+	// Inicia serviço de limpeza automática
+	cleanupService.Start()
 
 	// Configura roteador
 	r := chi.NewRouter()
@@ -72,6 +76,10 @@ func main() {
 		r.Post("/refresh", walletHandler.RefreshToken)
 		r.Post("/forgot-password", walletHandler.ForgotPassword)
 		r.Post("/reset-password", walletHandler.ResetPassword)
+		
+		// Rotas de administração (limpeza)
+		r.Post("/admin/cleanup", walletHandler.CleanupTokens)
+		r.Get("/admin/cleanup/stats", walletHandler.GetCleanupStats)
 		
 		// Rotas protegidas (precisam de autenticação)
 		r.Group(func(r chi.Router) {
@@ -110,6 +118,9 @@ func main() {
 	// Aguarda sinal de interrupção
 	<-stop
 	log.Println("🛑 Recebido sinal de interrupção, encerrando servidor...")
+
+	// Para o serviço de limpeza
+	cleanupService.Stop()
 
 	// Shutdown graceful
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

@@ -12,13 +12,15 @@ import (
 
 // WalletHandler representa o handler para operações de carteira
 type WalletHandler struct {
-	walletService *services.WalletService
+	walletService  *services.WalletService
+	cleanupService *services.CleanupService
 }
 
 // NewWalletHandler cria um novo handler de carteiras
-func NewWalletHandler(walletService *services.WalletService) *WalletHandler {
+func NewWalletHandler(walletService *services.WalletService, cleanupService *services.CleanupService) *WalletHandler {
 	return &WalletHandler{
-		walletService: walletService,
+		walletService:  walletService,
+		cleanupService: cleanupService,
 	}
 }
 
@@ -195,6 +197,46 @@ func (h *WalletHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithSuccess(w, http.StatusOK, "Senha redefinida com sucesso", response)
+}
+
+// CleanupTokens executa limpeza manual de tokens expirados
+func (h *WalletHandler) CleanupTokens(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Executa limpeza manual
+	err := h.cleanupService.CleanupNow()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Erro ao executar limpeza", err.Error())
+		return
+	}
+
+	// Obtém estatísticas
+	stats, err := h.cleanupService.GetStats()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Erro ao obter estatísticas", err.Error())
+		return
+	}
+
+	respondWithSuccess(w, http.StatusOK, "Limpeza executada com sucesso", stats)
+}
+
+// GetCleanupStats retorna estatísticas de limpeza
+func (h *WalletHandler) GetCleanupStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	stats, err := h.cleanupService.GetStats()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Erro ao obter estatísticas", err.Error())
+		return
+	}
+
+	respondWithSuccess(w, http.StatusOK, "Estatísticas obtidas com sucesso", stats)
 }
 
 // CreateInvoice cria um invoice para receber pagamento
