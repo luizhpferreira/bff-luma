@@ -68,7 +68,49 @@ curl -X POST http://localhost:8080/api/v1/refresh \
 }
 ```
 
-### 4. Obter Informações da Carteira
+### 4. Recuperação de Senha
+```bash
+curl -X POST http://localhost:8080/api/v1/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "usuario@exemplo.com"
+  }'
+```
+
+**Resposta esperada:**
+```json
+{
+  "success": true,
+  "message": "Solicitação processada",
+  "data": {
+    "message": "Se o email existir em nossa base, você receberá um link de recuperação"
+  }
+}
+```
+
+### 5. Reset de Senha
+```bash
+curl -X POST http://localhost:8080/api/v1/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "token-gerado-no-email",
+    "new_password": "NovaSenha@2024!",
+    "new_password_repeat": "NovaSenha@2024!"
+  }'
+```
+
+**Resposta esperada:**
+```json
+{
+  "success": true,
+  "message": "Senha redefinida com sucesso",
+  "data": {
+    "message": "Senha redefinida com sucesso"
+  }
+}
+```
+
+### 6. Obter Informações da Carteira
 ```bash
 curl -H "Authorization: Bearer <seu_token_aqui>" \
   "http://localhost:8080/api/v1/wallets"
@@ -91,7 +133,7 @@ curl -H "Authorization: Bearer <seu_token_aqui>" \
 
 ## ⚠️ Endpoints com Problemas de Conexão LNBits
 
-### 5. Criar Invoice
+### 7. Criar Invoice
 ```bash
 curl -X POST http://localhost:8080/api/v1/invoices \
   -H "Authorization: Bearer <seu_token_aqui>" \
@@ -111,7 +153,7 @@ curl -X POST http://localhost:8080/api/v1/invoices \
 }
 ```
 
-### 6. Verificar Status do Pagamento
+### 8. Verificar Status do Pagamento
 ```bash
 curl -H "Authorization: Bearer <seu_token_aqui>" \
   "http://localhost:8080/api/v1/payments/status?payment_hash=abc123"

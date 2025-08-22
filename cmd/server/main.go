@@ -34,7 +34,8 @@ func main() {
 	// Inicializa serviços
 	lnbitsService := services.NewLNBitsService(cfg.LNBitsBaseURL, cfg.LNBitsAdminKey, cfg.LNBitsWebhookSecret)
 	jwtService := services.NewJWTService(cfg.JWTSecret)
-	walletService := services.NewWalletService(db, lnbitsService, jwtService)
+	emailService := services.NewEmailService()
+	walletService := services.NewWalletService(db, lnbitsService, jwtService, emailService)
 
 	// Inicializa handlers
 	walletHandler := handlers.NewWalletHandler(walletService)
@@ -68,6 +69,8 @@ func main() {
 		r.Post("/wallets", walletHandler.CreateWallet)
 		r.Post("/login", walletHandler.Login)
 		r.Post("/refresh", walletHandler.RefreshToken)
+		r.Post("/forgot-password", walletHandler.ForgotPassword)
+		r.Post("/reset-password", walletHandler.ResetPassword)
 		
 		// Rotas protegidas (precisam de autenticação)
 		r.Group(func(r chi.Router) {

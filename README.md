@@ -154,6 +154,54 @@ Authorization: Bearer <token>
 }
 ```
 
+### Recuperação de Senha
+```
+POST /api/v1/forgot-password
+```
+
+**Request Body:**
+```json
+{
+  "email": "usuario@exemplo.com"
+}
+```
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Solicitação processada",
+  "data": {
+    "message": "Se o email existir em nossa base, você receberá um link de recuperação"
+  }
+}
+```
+
+### Reset de Senha
+```
+POST /api/v1/reset-password
+```
+
+**Request Body:**
+```json
+{
+  "token": "token-gerado-no-email",
+  "new_password": "NovaSenha@2024!",
+  "new_password_repeat": "NovaSenha@2024!"
+}
+```
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Senha redefinida com sucesso",
+  "data": {
+    "message": "Senha redefinida com sucesso"
+  }
+}
+```
+
 ### Obter Informações da Carteira
 ```
 GET /api/v1/wallets
@@ -246,6 +294,7 @@ Authorization: Bearer <token>
 - **Autenticação**: Sistema de login com email e senha
 - **JWT**: Tokens JWT para sessões seguras (expira em 24 horas)
 - **Middleware**: Autenticação obrigatória para endpoints protegidos
+- **Recuperação de Senha**: Sistema seguro de reset com tokens únicos (expira em 1 hora)
 - **Logs**: Operações importantes são logadas para auditoria
 - **CORS**: Configurado para permitir requisições cross-origin
 

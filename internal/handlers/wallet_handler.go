@@ -131,6 +131,72 @@ func (h *WalletHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	respondWithSuccess(w, http.StatusOK, "Token renovado com sucesso", response)
 }
 
+// ForgotPassword inicia o processo de recuperação de senha
+func (h *WalletHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.ForgotPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Erro ao decodificar requisição", err.Error())
+		return
+	}
+
+	// Validação básica
+	if req.Email == "" {
+		respondWithError(w, http.StatusBadRequest, "email é obrigatório", "")
+		return
+	}
+
+	response, err := h.walletService.ForgotPassword(&req)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Erro ao processar recuperação de senha", err.Error())
+		return
+	}
+
+	respondWithSuccess(w, http.StatusOK, "Solicitação processada", response)
+}
+
+// ResetPassword redefine a senha usando um token
+func (h *WalletHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Erro ao decodificar requisição", err.Error())
+		return
+	}
+
+	// Validação básica
+	if req.Token == "" {
+		respondWithError(w, http.StatusBadRequest, "token é obrigatório", "")
+		return
+	}
+
+	if req.NewPassword == "" {
+		respondWithError(w, http.StatusBadRequest, "new_password é obrigatório", "")
+		return
+	}
+
+	if req.NewPasswordRepeat == "" {
+		respondWithError(w, http.StatusBadRequest, "new_password_repeat é obrigatório", "")
+		return
+	}
+
+	response, err := h.walletService.ResetPassword(&req)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Erro ao redefinir senha", err.Error())
+		return
+	}
+
+	respondWithSuccess(w, http.StatusOK, "Senha redefinida com sucesso", response)
+}
+
 // CreateInvoice cria um invoice para receber pagamento
 func (h *WalletHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

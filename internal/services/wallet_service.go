@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 	"unicode"
+
+	"github.com/google/uuid"
 
 	"bff-luma/internal/database"
 	"bff-luma/internal/models"
@@ -15,14 +18,16 @@ type WalletService struct {
 	db       *database.Database
 	lnbits   *LNBitsService
 	jwt      *JWTService
+	email    *EmailService
 }
 
 // NewWalletService cria um novo serviço de carteiras
-func NewWalletService(db *database.Database, lnbits *LNBitsService, jwt *JWTService) *WalletService {
+func NewWalletService(db *database.Database, lnbits *LNBitsService, jwt *JWTService, email *EmailService) *WalletService {
 	return &WalletService{
 		db:     db,
 		lnbits: lnbits,
 		jwt:    jwt,
+		email:  email,
 	}
 }
 
@@ -238,4 +243,95 @@ func (s *WalletService) GetWalletInfo(email string) (*models.Wallet, error) {
 // RefreshToken renova um token JWT
 func (s *WalletService) RefreshToken(tokenString string) (string, error) {
 	return s.jwt.RefreshToken(tokenString)
+}
+
+// ForgotPassword inicia o processo de recuperação de senha
+func (s *WalletService) ForgotPassword(req *models.ForgotPasswordRequest) (*models.ForgotPasswordResponse, error) {
+	// Verifica se o email existe
+	exists, err := s.db.WalletExists(req.Email)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao verificar existência do usuário: %w", err)
+	}
+
+	if !exists {
+		// Por segurança, não revelamos se o email existe ou não
+		log.Printf("Tentativa de reset de senha para email inexistente: %s", req.Email)
+		return &models.ForgotPasswordResponse{
+			Message: "Se o email existir em nossa base, você receberá um link de recuperação",
+		}, nil
+	}
+
+	// Gera token único
+	token := uuid.New().String()
+	
+	// Token expira em 1 hora
+	expiresAt := time.Now().Add(1 * time.Hour)
+
+	// Salva token no banco
+	err = s.db.CreateResetToken(req.Email, token, expiresAt)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar token de reset: %w", err)
+	}
+
+	// Envia email (simulado)
+	err = s.email.SendPasswordResetEmail(req.Email, token)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao enviar email: %w", err)
+	}
+
+	log.Printf("Token de reset criado para %s: %s", req.Email, token)
+
+	return &models.ForgotPasswordResponse{
+		Message: "Se o email existir em nossa base, você receberá um link de recuperação",
+	}, nil
+}
+
+// ResetPassword redefine a senha usando um token válido
+func (s *WalletService) ResetPassword(req *models.ResetPasswordRequest) (*models.ResetPasswordResponse, error) {
+	// Valida se as senhas coincidem
+	if req.NewPassword != req.NewPasswordRepeat {
+		return nil, fmt.Errorf("as senhas não coincidem")
+	}
+
+	// Valida força da senha
+	if err := validateStrongPassword(req.NewPassword); err != nil {
+		return nil, fmt.Errorf("senha não atende aos requisitos de segurança: %w", err)
+	}
+
+	// Busca token válido
+	email, expiresAt, used, err := s.db.GetResetToken(req.Token)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao validar token: %w", err)
+	}
+
+	if email == "" {
+		return nil, fmt.Errorf("token inválido ou expirado")
+	}
+
+	if used {
+		return nil, fmt.Errorf("token já foi utilizado")
+	}
+
+	if time.Now().After(expiresAt) {
+		return nil, fmt.Errorf("token expirado")
+	}
+
+	// Atualiza senha
+	err = s.db.UpdatePassword(email, req.NewPassword)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao atualizar senha: %w", err)
+	}
+
+	// Marca token como usado
+	err = s.db.MarkResetTokenAsUsed(req.Token)
+	if err != nil {
+		log.Printf("Erro ao marcar token como usado: %v", err)
+		// Não falha a operação por causa disso
+	}
+
+	log.Printf("Senha redefinida com sucesso para: %s", email)
+
+	return &models.ResetPasswordResponse{
+		Message: "Senha redefinida com sucesso",
+	}, nil
 }

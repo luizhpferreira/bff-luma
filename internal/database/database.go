@@ -49,8 +49,19 @@ func (d *Database) createTables() error {
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
+	CREATE TABLE IF NOT EXISTS reset_tokens (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		email TEXT NOT NULL,
+		token TEXT NOT NULL UNIQUE,
+		expires_at DATETIME NOT NULL,
+		used BOOLEAN DEFAULT FALSE,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_wallets_email ON wallets(email);
 	CREATE INDEX IF NOT EXISTS idx_wallets_wallet_id ON wallets(wallet_id);
+	CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON reset_tokens(token);
+	CREATE INDEX IF NOT EXISTS idx_reset_tokens_email ON reset_tokens(email);
 	`
 
 	_, err := d.db.Exec(query)
@@ -142,6 +153,68 @@ func (d *Database) WalletExists(email string) (bool, error) {
 	}
 
 	return count > 0, nil
+}
+
+// CreateResetToken cria um token de reset de senha
+func (d *Database) CreateResetToken(email, token string, expiresAt time.Time) error {
+	query := `
+	INSERT INTO reset_tokens (email, token, expires_at, created_at)
+	VALUES (?, ?, ?, ?)
+	`
+
+	_, err := d.db.Exec(query, email, token, expiresAt, time.Now())
+	if err != nil {
+		return fmt.Errorf("erro ao criar token de reset: %w", err)
+	}
+
+	return nil
+}
+
+// GetResetToken obtém um token de reset válido
+func (d *Database) GetResetToken(token string) (string, time.Time, bool, error) {
+	query := `
+	SELECT email, expires_at, used
+	FROM reset_tokens 
+	WHERE token = ? AND used = FALSE AND expires_at > ?
+	`
+
+	var email string
+	var expiresAt time.Time
+	var used bool
+
+	err := d.db.QueryRow(query, token, time.Now()).Scan(&email, &expiresAt, &used)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", time.Time{}, false, nil
+		}
+		return "", time.Time{}, false, fmt.Errorf("erro ao buscar token de reset: %w", err)
+	}
+
+	return email, expiresAt, used, nil
+}
+
+// MarkResetTokenAsUsed marca um token como usado
+func (d *Database) MarkResetTokenAsUsed(token string) error {
+	query := `UPDATE reset_tokens SET used = TRUE WHERE token = ?`
+
+	_, err := d.db.Exec(query, token)
+	if err != nil {
+		return fmt.Errorf("erro ao marcar token como usado: %w", err)
+	}
+
+	return nil
+}
+
+// UpdatePassword atualiza a senha de um usuário
+func (d *Database) UpdatePassword(email, newPassword string) error {
+	query := `UPDATE wallets SET password = ?, updated_at = ? WHERE email = ?`
+
+	_, err := d.db.Exec(query, newPassword, time.Now(), email)
+	if err != nil {
+		return fmt.Errorf("erro ao atualizar senha: %w", err)
+	}
+
+	return nil
 }
 
 // Close fecha a conexão com o banco de dados

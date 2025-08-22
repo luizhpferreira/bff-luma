@@ -69,3 +69,25 @@ type PaymentStatus struct {
 	Email       string `json:"email"`
 	PaidAt      *int64 `json:"paid_at,omitempty"`
 }
+
+// ForgotPasswordRequest representa a requisição de recuperação de senha
+type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+// ResetPasswordRequest representa a requisição de reset de senha
+type ResetPasswordRequest struct {
+	Token           string `json:"token" validate:"required"`
+	NewPassword     string `json:"new_password" validate:"required,min=8"`
+	NewPasswordRepeat string `json:"new_password_repeat" validate:"required,min=8"`
+}
+
+// ForgotPasswordResponse representa a resposta de recuperação de senha
+type ForgotPasswordResponse struct {
+	Message string `json:"message"`
+}
+
+// ResetPasswordResponse representa a resposta de reset de senha
+type ResetPasswordResponse struct {
+	Message string `json:"message"`
+}
