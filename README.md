@@ -78,10 +78,19 @@ POST /api/v1/wallets
 ```json
 {
   "email": "usuario@exemplo.com",
-  "password": "minhasenha123",
-  "password_repeat": "minhasenha123"
+  "password": "MinhaSenha@123",
+  "password_repeat": "MinhaSenha@123"
 }
 ```
+
+**Requisitos da Senha:**
+- Mínimo 8 caracteres
+- Pelo menos uma letra maiúscula
+- Pelo menos uma letra minúscula
+- Pelo menos um número
+- Pelo menos um caractere especial
+- Não pode conter sequências comuns (123, abc, qwe, etc.)
+- Não pode ter mais de 2 caracteres iguais consecutivos
 
 **Resposta:**
 ```json
@@ -105,7 +114,7 @@ POST /api/v1/login
 ```json
 {
   "email": "usuario@exemplo.com",
-  "password": "minhasenha123"
+  "password": "MinhaSenha@123"
 }
 ```
 

@@ -19,7 +19,7 @@ type Wallet struct {
 // CreateWalletRequest representa a requisição para criar uma carteira
 type CreateWalletRequest struct {
 	Email           string `json:"email" validate:"required,email"`
-	Password        string `json:"password" validate:"required,min=6"`
+	Password        string `json:"password" validate:"required,min=8"`
 	PasswordRepeat  string `json:"password_repeat" validate:"required"`
 }
 

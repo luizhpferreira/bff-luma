@@ -8,8 +8,8 @@ curl -X POST http://localhost:8080/api/v1/wallets \
   -H "Content-Type: application/json" \
   -d '{
     "email": "usuario@exemplo.com",
-    "password": "minhasenha123",
-    "password_repeat": "minhasenha123"
+    "password": "MinhaSenha@123",
+    "password_repeat": "MinhaSenha@123"
   }'
 ```
 
@@ -32,7 +32,7 @@ curl -X POST http://localhost:8080/api/v1/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "usuario@exemplo.com",
-    "password": "minhasenha123"
+    "password": "MinhaSenha@123"
   }'
 ```
 
@@ -213,5 +213,28 @@ echo "✅ Testes concluídos!"
 - **Cadastro**: Use `email`, `password` e `password_repeat` para criar uma nova carteira
 - **Login**: Use `email` e `password` para autenticar
 - **Validação**: O sistema verifica se as senhas coincidem no cadastro
+- **Senha Forte**: O sistema valida se a senha atende aos requisitos de segurança
 - **Segurança**: As senhas são armazenadas no banco (em produção, deve ser hash)
 - **LNBits**: Problemas de conexão são esperados nos endpoints de invoice e pagamento
+
+## 🔒 Requisitos de Senha Forte
+
+A senha deve atender aos seguintes critérios:
+- **Mínimo 8 caracteres**
+- **Pelo menos uma letra maiúscula**
+- **Pelo menos uma letra minúscula**
+- **Pelo menos um número**
+- **Pelo menos um caractere especial**
+- **Não pode conter sequências comuns** (123, abc, qwe, asd, zxc, password, senha)
+- **Não pode ter mais de 2 caracteres iguais consecutivos**
+
+**Exemplos de senhas válidas:**
+- `B@nco2024!`
+- `MinhaChave@123`
+- `S3nh@F0rt3!`
+
+**Exemplos de senhas inválidas:**
+- `123456789` (só números, sem maiúsculas, minúsculas ou especiais)
+- `abcdefgh` (só minúsculas, sem maiúsculas, números ou especiais)
+- `aaa123456` (caracteres repetidos consecutivos)
+- `MinhaSenha@123` (contém "senha" na lista de sequências comuns)

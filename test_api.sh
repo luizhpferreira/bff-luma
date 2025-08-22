@@ -3,7 +3,7 @@
 BASE_URL="http://localhost:8080"
 API_URL="$BASE_URL/api/v1"
 EMAIL="teste_$(date +%s)@exemplo.com"
-PASSWORD="123456"
+PASSWORD="B@nco2024!"
 
 echo "🧪 Testando BFF Luma API"
 echo "=========================="

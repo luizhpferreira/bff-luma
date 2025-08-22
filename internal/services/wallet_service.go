@@ -3,6 +3,8 @@ package services
 import (
 	"fmt"
 	"log"
+	"strings"
+	"unicode"
 
 	"bff-luma/internal/database"
 	"bff-luma/internal/models"
@@ -22,11 +24,82 @@ func NewWalletService(db *database.Database, lnbits *LNBitsService) *WalletServi
 	}
 }
 
+// validateStrongPassword valida se a senha é forte
+func validateStrongPassword(password string) error {
+	if len(password) < 8 {
+		return fmt.Errorf("a senha deve ter pelo menos 8 caracteres")
+	}
+
+	var (
+		hasUpper   bool
+		hasLower   bool
+		hasNumber  bool
+		hasSpecial bool
+	)
+
+	for _, char := range password {
+		switch {
+		case unicode.IsUpper(char):
+			hasUpper = true
+		case unicode.IsLower(char):
+			hasLower = true
+		case unicode.IsNumber(char):
+			hasNumber = true
+		case unicode.IsPunct(char) || unicode.IsSymbol(char):
+			hasSpecial = true
+		}
+	}
+
+	var errors []string
+
+	if !hasUpper {
+		errors = append(errors, "pelo menos uma letra maiúscula")
+	}
+	if !hasLower {
+		errors = append(errors, "pelo menos uma letra minúscula")
+	}
+	if !hasNumber {
+		errors = append(errors, "pelo menos um número")
+	}
+	if !hasSpecial {
+		errors = append(errors, "pelo menos um caractere especial")
+	}
+
+	// Verificar sequências comuns
+	commonSequences := []string{"123", "abc", "qwe", "asd", "zxc", "password", "senha"}
+	passwordLower := strings.ToLower(password)
+	for _, seq := range commonSequences {
+		if strings.Contains(passwordLower, seq) {
+			errors = append(errors, "não pode conter sequências comuns")
+			break
+		}
+	}
+
+	// Verificar caracteres repetidos
+	for i := 0; i < len(password)-2; i++ {
+		if password[i] == password[i+1] && password[i] == password[i+2] {
+			errors = append(errors, "não pode ter mais de 2 caracteres iguais consecutivos")
+			break
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("senha fraca: %s", strings.Join(errors, ", "))
+	}
+
+	return nil
+}
+
 // CreateWallet cria uma nova carteira para um usuário
 func (s *WalletService) CreateWallet(req *models.CreateWalletRequest) (*models.CreateWalletResponse, error) {
 	// Verifica se as senhas coincidem
 	if req.Password != req.PasswordRepeat {
 		return nil, fmt.Errorf("as senhas não coincidem")
+	}
+
+	// Valida se a senha é forte
+	if err := validateStrongPassword(req.Password); err != nil {
+		return nil, fmt.Errorf("erro na validação da senha: %w", err)
 	}
 
 	// Verifica se já existe uma carteira para este email
