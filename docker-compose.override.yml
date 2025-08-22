@@ -9,7 +9,7 @@ services:
     environment:
       # Configurações de desenvolvimento (pode sobrescrever valores do .env)
       - JWT_SECRET=${JWT_SECRET:-dev_jwt_secret_change_in_production}
-      - LNBITS_BASE_URL=${LNBITS_BASE_URL:-http://127.0.0.1:5000}
+      - LNBITS_BASE_URL=${LNBITS_BASE_URL:-http://host.docker.internal:5000}
       - LNBITS_ADMIN_KEY=${LNBITS_ADMIN_KEY:-dev_lnbits_admin_key}
       - LNBITS_WEBHOOK_SECRET=${LNBITS_WEBHOOK_SECRET:-dev_webhook_secret}
       # Desabilita SMTP em desenvolvimento (modo simulado)
