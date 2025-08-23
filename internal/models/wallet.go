@@ -18,14 +18,14 @@ type Wallet struct {
 
 // CreateWalletRequest representa a requisição para criar uma carteira
 type CreateWalletRequest struct {
-	Username        string `json:"username" validate:"required"`
+	Username        string `json:"username" validate:"required"` // CPF do usuário
 	Password        string `json:"password" validate:"required,min=8"`
 	PasswordRepeat  string `json:"password_repeat" validate:"required"`
 }
 
 // LoginRequest representa a requisição de login
 type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
+	Email    string `json:"email" validate:"required"` // Campo usado para CPF
 	Password string `json:"password" validate:"required"`
 }
 

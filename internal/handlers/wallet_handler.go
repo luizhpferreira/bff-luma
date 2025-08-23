@@ -50,6 +50,12 @@ func (h *WalletHandler) CreateWallet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validar se o username é um CPF válido
+	if err := h.walletService.ValidateCPF(req.Username); err != nil {
+		respondWithError(w, http.StatusBadRequest, "CPF inválido", err.Error())
+		return
+	}
+
 	if req.Password == "" {
 		respondWithError(w, http.StatusBadRequest, "password é obrigatório", "")
 		return
@@ -105,7 +111,13 @@ func (h *WalletHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Validação básica
 	if req.Email == "" {
-		respondWithError(w, http.StatusBadRequest, "email é obrigatório", "")
+		respondWithError(w, http.StatusBadRequest, "CPF é obrigatório", "")
+		return
+	}
+
+	// Validar se o email (que agora é CPF) é um CPF válido
+	if err := h.walletService.ValidateCPF(req.Email); err != nil {
+		respondWithError(w, http.StatusBadRequest, "CPF inválido", err.Error())
 		return
 	}
 
@@ -114,7 +126,7 @@ func (h *WalletHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verifica rate limit por email
+	// Verifica rate limit por CPF
 	if !h.rateLimiter.AllowLogin(req.Email) {
 		remaining := h.rateLimiter.GetRemainingAttempts(req.Email)
 		respondWithError(w, http.StatusTooManyRequests, "Muitas tentativas de login. Tente novamente em 15 minutos.", fmt.Sprintf("Tentativas restantes: %d", remaining))

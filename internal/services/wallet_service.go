@@ -34,6 +34,52 @@ func NewWalletService(db *database.Database, lnbits *LNBitsService, jwt *JWTServ
 
 
 
+// ValidateCPF valida se o CPF é válido
+func (s *WalletService) ValidateCPF(cpf string) error {
+	// Remove caracteres não numéricos
+	cpf = strings.ReplaceAll(cpf, ".", "")
+	cpf = strings.ReplaceAll(cpf, "-", "")
+	
+	if len(cpf) != 11 {
+		return fmt.Errorf("CPF deve ter 11 dígitos")
+	}
+	
+	// Verifica se todos os dígitos são iguais
+	if cpf == "00000000000" || cpf == "11111111111" || cpf == "22222222222" ||
+		cpf == "33333333333" || cpf == "44444444444" || cpf == "55555555555" ||
+		cpf == "66666666666" || cpf == "77777777777" || cpf == "88888888888" ||
+		cpf == "99999999999" {
+		return fmt.Errorf("CPF inválido")
+	}
+	
+	// Validação dos dígitos verificadores
+	sum := 0
+	for i := 0; i < 9; i++ {
+		sum += int(cpf[i]-'0') * (10 - i)
+	}
+	remainder := (sum * 10) % 11
+	if remainder == 10 || remainder == 11 {
+		remainder = 0
+	}
+	if remainder != int(cpf[9]-'0') {
+		return fmt.Errorf("CPF inválido")
+	}
+	
+	sum = 0
+	for i := 0; i < 10; i++ {
+		sum += int(cpf[i]-'0') * (11 - i)
+	}
+	remainder = (sum * 10) % 11
+	if remainder == 10 || remainder == 11 {
+		remainder = 0
+	}
+	if remainder != int(cpf[10]-'0') {
+		return fmt.Errorf("CPF inválido")
+	}
+	
+	return nil
+}
+
 // CreateWallet cria uma nova carteira para o usuário
 func (s *WalletService) CreateWallet(username, password string) (*models.Wallet, error) {
 	// Verifica se a carteira já existe
