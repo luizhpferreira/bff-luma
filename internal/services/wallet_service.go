@@ -235,7 +235,7 @@ func (s *WalletService) RefreshToken(tokenString string) (string, error) {
 // ForgotPassword inicia o processo de recuperação de senha
 func (s *WalletService) ForgotPassword(req *models.ForgotPasswordRequest) (*models.ForgotPasswordResponse, error) {
 	// Verifica se o email existe
-	exists, err := s.db.WalletExists(req.Email)
+	exists, err := s.db.WalletExistsByEmail(req.Email)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao verificar existência do usuário: %w", err)
 	}

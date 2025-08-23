@@ -189,6 +189,19 @@ func (d *Database) WalletExists(cpf string) (bool, error) {
 	return count > 0, nil
 }
 
+// WalletExistsByEmail verifica se uma carteira existe pelo email
+func (d *Database) WalletExistsByEmail(email string) (bool, error) {
+	query := `SELECT COUNT(*) FROM wallets WHERE email = $1`
+	
+	var count int
+	err := d.db.QueryRow(query, email).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("erro ao verificar existência da carteira por email: %w", err)
+	}
+
+	return count > 0, nil
+}
+
 // CreateResetToken cria um token de reset de senha
 func (d *Database) CreateResetToken(email, token string, expiresAt time.Time) error {
 	query := `
