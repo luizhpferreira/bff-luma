@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,65 +34,48 @@ func NewWalletService(db *database.Database, lnbits *LNBitsService, jwt *JWTServ
 
 
 
-// CreateWallet cria uma nova carteira para um usuário
-func (s *WalletService) CreateWallet(req *models.CreateWalletRequest) (*models.CreateWalletResponse, error) {
-	// Verifica se as senhas coincidem
-	if req.Password != req.PasswordRepeat {
-		return nil, fmt.Errorf("as senhas não coincidem")
-	}
-
-	// Valida se a senha é forte
-	if err := s.password.ValidatePasswordStrength(req.Password); err != nil {
-		return nil, fmt.Errorf("erro na validação da senha: %w", err)
-	}
-
-	// Verifica se já existe uma carteira para este email
-	exists, err := s.db.WalletExists(req.Email)
+// CreateWallet cria uma nova carteira para o usuário
+func (s *WalletService) CreateWallet(username, password string) (*models.Wallet, error) {
+	// Verifica se a carteira já existe
+	exists, err := s.db.WalletExists(username)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao verificar existência da carteira: %w", err)
 	}
-
 	if exists {
-		return nil, fmt.Errorf("carteira já existe para o email %s", req.Email)
+		return nil, fmt.Errorf("carteira já existe para este username")
 	}
 
-	// Cria a carteira no LNBits usando o email como username
-	wallet, err := s.lnbits.CreateWallet(req.Email, req.Password)
+	// Cria usuário individual no LNBits usando o username fornecido
+	// Cada usuário terá sua própria wallet, mas compartilhará os canais do CLN
+	wallet, err := s.lnbits.CreateWallet(username, password)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao criar carteira no LNBits: %w", err)
 	}
 
 	// Gera hash da senha
-	hashedPassword, err := s.password.HashPassword(req.Password)
+	hashedPassword, err := s.password.HashPassword(password)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao gerar hash da senha: %w", err)
 	}
 
-	// Associa o email e senha hash à carteira
-	wallet.Email = req.Email
+	// Salva no banco de dados
+	wallet.Email = username // Usando username como email no banco
 	wallet.Password = hashedPassword
 
-	// Salva no banco de dados
 	if err := s.db.CreateWallet(wallet); err != nil {
 		return nil, fmt.Errorf("erro ao salvar carteira no banco: %w", err)
 	}
 
-	// Envia email de boas-vindas
-	go func() {
-		if err := s.email.SendWelcomeEmail(req.Email, wallet.WalletID); err != nil {
-			log.Printf("⚠️ Erro ao enviar email de boas-vindas para %s: %v", req.Email, err)
-		}
-	}()
+	// Envia email de boas-vindas (desabilitado por enquanto)
+	// go func() {
+	// 	if err := s.email.SendWelcomeEmail(username, wallet.WalletID); err != nil {
+	// 		log.Printf("⚠️ Erro ao enviar email de boas-vindas para %s: %v", username, err)
+	// 	}
+	// }()
 
-	log.Printf("Carteira criada com sucesso para email %s: %s", req.Email, wallet.WalletID)
+	log.Printf("Carteira criada com sucesso para username %s: %s", username, wallet.WalletID)
 
-	response := &models.CreateWalletResponse{
-		WalletID: wallet.WalletID,
-		Email:    wallet.Email,
-		Message:  "Carteira criada com sucesso",
-	}
-
-	return response, nil
+	return wallet, nil
 }
 
 // CreateInvoice cria um invoice para um usuário
@@ -106,7 +90,7 @@ func (s *WalletService) CreateInvoice(req *models.InvoiceRequest) (*models.Invoi
 		return nil, fmt.Errorf("carteira não encontrada para o email %s", req.Email)
 	}
 
-	// Cria o invoice no LNBits usando a invoice key da carteira
+	// Cria o invoice no LNBits usando a invoice key da carteira do usuário
 	invoice, err := s.lnbits.CreateInvoice(wallet.InvoiceKey, req.Amount, req.Memo)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao criar invoice no LNBits: %w", err)
@@ -290,3 +274,99 @@ func (s *WalletService) ResetPassword(req *models.ResetPasswordRequest) (*models
 		Message: "Senha redefinida com sucesso",
 	}, nil
 }
+
+// ValidatePasswordStrength valida se a senha é forte
+func (s *WalletService) ValidatePasswordStrength(password string) error {
+	return s.password.ValidatePasswordStrength(password)
+}
+
+// generateUsernameFromEmail gera um apelido inteligente baseado no email
+// Exemplos:
+// luiz.fernando.silva@gmail.com -> lufe_gmail
+// joao.pedro@hotmail.com -> jope_hotmail
+// maria@exemplo.com -> maria_exemplo
+func (s *WalletService) generateUsernameFromEmail(email string) string {
+	// Separa o email em partes
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		// Se não conseguir separar, usa um hash simples
+		return fmt.Sprintf("user_%x", strings.ToLower(email)[:8])
+	}
+	
+	localPart := parts[0]  // parte antes do @
+	domainPart := parts[1] // parte depois do @
+	
+	// Remove extensão do domínio (gmail.com -> gmail)
+	domainName := strings.Split(domainPart, ".")[0]
+	
+	// Gera apelido da parte local
+	nickname := generateNickname(localPart)
+	
+	// Combina nickname + domínio
+	username := fmt.Sprintf("%s_%s", nickname, domainName)
+	
+	// Garante que não passe de 20 caracteres
+	if len(username) > 20 {
+		// Se ainda for muito grande, trunca mantendo a proporção
+		maxNickname := 20 - len(domainName) - 1 // -1 para o underscore
+		if maxNickname < 2 {
+			maxNickname = 2
+		}
+		nickname = nickname[:maxNickname]
+		username = fmt.Sprintf("%s_%s", nickname, domainName)
+		
+		// Se ainda for muito grande, trunca tudo
+		if len(username) > 20 {
+			username = username[:20]
+		}
+	}
+	
+	return strings.ToLower(username)
+}
+
+// generateNickname gera um apelido inteligente da parte local do email
+func generateNickname(localPart string) string {
+	// Remove caracteres especiais e substitui por underscore
+	cleaned := strings.ReplaceAll(strings.ReplaceAll(localPart, ".", ""), "-", "")
+	
+	// Se for curto, usa como está
+	if len(cleaned) <= 4 {
+		return cleaned
+	}
+	
+	// Tenta gerar um apelido inteligente
+	// Pega as primeiras letras de cada "palavra" separada por pontos ou hífens
+	words := strings.FieldsFunc(localPart, func(c rune) bool {
+		return c == '.' || c == '-' || c == '_'
+	})
+	
+	if len(words) > 1 {
+		// Pega as primeiras 2 letras de cada palavra
+		var nickname strings.Builder
+		for _, word := range words {
+			if len(word) >= 2 {
+				nickname.WriteString(word[:2])
+			} else if len(word) == 1 {
+				nickname.WriteString(word)
+			}
+			
+			// Limita a 8 caracteres para o apelido
+			if nickname.Len() >= 8 {
+				break
+			}
+		}
+		
+		if nickname.Len() > 0 {
+			return nickname.String()
+		}
+	}
+	
+	// Se não conseguir gerar apelido inteligente, usa as primeiras 6 letras
+	if len(cleaned) > 6 {
+		return cleaned[:6]
+	}
+	
+	return cleaned
+}
+
+

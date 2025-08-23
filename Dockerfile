@@ -2,7 +2,7 @@
 FROM golang:1.24 AS builder
 
 # Instala dependências necessárias
-RUN apt-get update && apt-get install -y git ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git ca-certificates tzdata gcc libc6-dev && rm -rf /var/lib/apt/lists/*
 
 # Define o diretório de trabalho
 WORKDIR /app
@@ -17,10 +17,10 @@ RUN go mod download
 COPY . .
 
 # Compila o aplicativo (CGO habilitado para PostgreSQL)
-RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags "-linkmode external -extldflags -static" -a -installsuffix cgo -o main ./cmd/server
 
 # Final stage
-FROM debian:bullseye-slim
+FROM ubuntu:22.04
 
 # Instala ca-certificates para HTTPS
 RUN apt-get update && apt-get install -y ca-certificates tzdata && rm -rf /var/lib/apt/lists/*

@@ -1,7 +1,7 @@
 {
 	"info": {
 		"name": "BFF Luma API",
-		"description": "API BFF para integração com LNBits - Gerenciamento de Carteiras Lightning\n\n✅ Funcionando:\n- Health Check\n- Cadastro de Usuários\n- Login\n- Consulta de Carteiras\n\n⚠️ Em desenvolvimento:\n- Criação de Invoices (problema de conexão no LNBits)\n- Verificação de Pagamentos",
+		"description": "API BFF para integração com LNBits - Gerenciamento de Carteiras Lightning\n\n✅ Funcionando:\n- Health Check\n- Cadastro de Usuários\n- Login com JWT\n- Refresh Token\n- Obter Informações da Carteira\n- Recuperação de Senha\n- Estatísticas de Limpeza\n- Estatísticas de Rate Limiting\n- Validações de Segurança\n- Rate Limiting\n\n⚠️ Em desenvolvimento:\n- Criação de Invoices (problema de conexão no LNBits)\n- Verificação de Pagamentos",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -16,19 +16,29 @@
 			"type": "string"
 		},
 		{
-			"key": "email",
-			"value": "teste@exemplo.com",
+			"key": "username",
+			"value": "teste_user",
 			"type": "string"
 		},
 		{
 			"key": "password",
 			"value": "B@nco2024!",
 			"type": "string"
+		},
+		{
+			"key": "email",
+			"value": "teste@exemplo.com",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
 		}
 	],
 	"item": [
 		{
-			"name": "Health Check",
+			"name": "🔍 Health Check",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -46,145 +56,415 @@
 			"response": []
 		},
 		{
-			"name": "Criar Carteira (Cadastro)",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\",\n    \"password_repeat\": \"{{password}}\"\n}"
-				},
-				"url": {
-					"raw": "{{api_url}}/wallets",
-					"host": ["{{api_url}}"],
-					"path": ["wallets"]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Login",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n}"
-				},
-				"url": {
-					"raw": "{{api_url}}/login",
-					"host": ["{{api_url}}"],
-					"path": ["login"]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Obter Informações da Carteira",
-			"request": {
-				"method": "GET",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"url": {
-					"raw": "{{api_url}}/wallets?email={{email}}",
-					"host": ["{{api_url}}"],
-					"path": ["wallets"],
-					"query": [
-						{
-							"key": "email",
-							"value": "{{email}}"
-						}
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Criar Invoice (⚠️ Problema de conexão)",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"email\": \"{{email}}\",\n    \"amount\": 1000,\n    \"memo\": \"Pagamento de teste - Postman\"\n}"
-				},
-				"url": {
-					"raw": "{{api_url}}/invoices",
-					"host": ["{{api_url}}"],
-					"path": ["invoices"]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Verificar Status do Pagamento (⚠️ Depende do Invoice)",
-			"request": {
-				"method": "GET",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"url": {
-					"raw": "{{api_url}}/payments/status?email={{email}}&payment_hash=PAYMENT_HASH_AQUI",
-					"host": ["{{api_url}}"],
-					"path": ["payments", "status"],
-					"query": [
-						{
-							"key": "email",
-							"value": "{{email}}"
+			"name": "👤 Autenticação",
+			"item": [
+				{
+					"name": "Criar Carteira (Cadastro)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{username}}\",\n    \"password\": \"{{password}}\",\n    \"password_repeat\": \"{{password}}\"\n}"
 						},
-						{
-							"key": "payment_hash",
-							"value": "PAYMENT_HASH_AQUI",
-							"description": "Substitua pelo payment_hash retornado na criação do invoice"
+						"url": {
+							"raw": "{{api_url}}/wallets",
+							"host": ["{{api_url}}"],
+							"path": ["wallets"]
 						}
-					]
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data.token) {",
+									"        pm.collectionVariables.set('jwt_token', response.data.token);",
+									"        console.log('Token JWT salvo:', response.data.token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{username}}\",\n    \"password\": \"{{password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/login",
+							"host": ["{{api_url}}"],
+							"path": ["login"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data.token) {",
+									"        pm.collectionVariables.set('jwt_token', response.data.token);",
+									"        console.log('Token JWT renovado:', response.data.token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{api_url}}/refresh",
+							"host": ["{{api_url}}"],
+							"path": ["refresh"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Recuperação de Senha",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{email}}\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/forgot-password",
+							"host": ["{{api_url}}"],
+							"path": ["forgot-password"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Reset de Senha",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"TOKEN_DO_EMAIL_AQUI\",\n    \"new_password\": \"NovaSenha@2024!\",\n    \"new_password_repeat\": \"NovaSenha@2024!\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/reset-password",
+							"host": ["{{api_url}}"],
+							"path": ["reset-password"]
+						}
+					},
+					"response": []
 				}
-			},
-			"response": []
+			]
 		},
 		{
-			"name": "Teste - Criar Carteira com Email Único",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"email\": \"teste_$(new Date().getTime())@exemplo.com\",\n    \"password\": \"123456\",\n    \"password_repeat\": \"123456\"\n}"
-				},
-				"url": {
-					"raw": "{{api_url}}/wallets",
-					"host": ["{{api_url}}"],
-					"path": ["wallets"]
+			"name": "💳 Carteira",
+			"item": [
+				{
+					"name": "Obter Informações da Carteira",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{api_url}}/wallets",
+							"host": ["{{api_url}}"],
+							"path": ["wallets"]
+						}
+					},
+					"response": []
 				}
-			},
-			"response": []
+			]
+		},
+		{
+			"name": "💰 Pagamentos",
+			"item": [
+				{
+					"name": "Criar Invoice (⚠️ Problema de conexão)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"amount\": 1000,\n    \"memo\": \"Pagamento de teste - Postman\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/invoices",
+							"host": ["{{api_url}}"],
+							"path": ["invoices"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verificar Status do Pagamento (⚠️ Depende do Invoice)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{api_url}}/payments/status?payment_hash=PAYMENT_HASH_AQUI",
+							"host": ["{{api_url}}"],
+							"path": ["payments", "status"],
+							"query": [
+								{
+									"key": "payment_hash",
+									"value": "PAYMENT_HASH_AQUI",
+									"description": "Substitua pelo payment_hash retornado na criação do invoice"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🔧 Administração",
+			"item": [
+				{
+					"name": "Estatísticas de Limpeza",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{api_url}}/admin/cleanup/stats",
+							"host": ["{{api_url}}"],
+							"path": ["admin", "cleanup", "stats"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Estatísticas de Rate Limiting",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{api_url}}/admin/rate-limit/stats",
+							"host": ["{{api_url}}"],
+							"path": ["admin", "rate-limit", "stats"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Limpeza Manual de Tokens",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{api_url}}/admin/cleanup",
+							"host": ["{{api_url}}"],
+							"path": ["admin", "cleanup"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🧪 Testes de Validação",
+			"item": [
+				{
+					"name": "Teste - Senhas que Não Coincidem",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"teste_validacao\",\n    \"password\": \"senha1\",\n    \"password_repeat\": \"senha2\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/wallets",
+							"host": ["{{api_url}}"],
+							"path": ["wallets"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Teste - Senha Fraca",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"teste_senha_fraca\",\n    \"password\": \"123\",\n    \"password_repeat\": \"123\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/wallets",
+							"host": ["{{api_url}}"],
+							"path": ["wallets"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Teste - Login com Senha Incorreta",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{username}}\",\n    \"password\": \"senha_incorreta\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/login",
+							"host": ["{{api_url}}"],
+							"path": ["login"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Teste - Rate Limiting (6 tentativas)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"rate_test@exemplo.com\",\n    \"password\": \"senha_incorreta\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/login",
+							"host": ["{{api_url}}"],
+							"path": ["login"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🔄 Testes Automatizados",
+			"item": [
+				{
+					"name": "Criar Carteira com Email Único",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"teste_$(new Date().getTime())\",\n    \"password\": \"{{password}}\",\n    \"password_repeat\": \"{{password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/wallets",
+							"host": ["{{api_url}}"],
+							"path": ["wallets"]
+						}
+					},
+					"response": []
+				}
+			]
 		}
 	]
 }

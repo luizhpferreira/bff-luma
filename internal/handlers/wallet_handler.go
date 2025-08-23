@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -39,10 +40,13 @@ func (h *WalletHandler) CreateWallet(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Erro ao decodificar requisição", err.Error())
 		return
 	}
+	
+	// Debug: log do request
+	log.Printf("DEBUG: Request recebido - Username: %s, Password: %s", req.Username, req.Password)
 
 	// Validação básica
-	if req.Email == "" {
-		respondWithError(w, http.StatusBadRequest, "email é obrigatório", "")
+	if req.Username == "" {
+		respondWithError(w, http.StatusBadRequest, "username é obrigatório", "")
 		return
 	}
 
@@ -56,14 +60,35 @@ func (h *WalletHandler) CreateWallet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := h.walletService.CreateWallet(&req)
+	// Valida se as senhas coincidem
+	if req.Password != req.PasswordRepeat {
+		respondWithError(w, http.StatusBadRequest, "as senhas não coincidem", "")
+		return
+	}
+
+	// Valida se a senha é forte
+	if err := h.walletService.ValidatePasswordStrength(req.Password); err != nil {
+		respondWithError(w, http.StatusBadRequest, "erro na validação da senha", err.Error())
+		return
+	}
+
+	// Cria a carteira (cada usuário terá sua própria wallet no LNBits)
+	wallet, err := h.walletService.CreateWallet(req.Username, req.Password)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Erro ao criar carteira", err.Error())
 		return
 	}
 
+	response := &models.CreateWalletResponse{
+		WalletID: wallet.WalletID,
+		Email:    wallet.Email,
+		Message:  "Carteira criada com sucesso",
+	}
+
 	respondWithSuccess(w, http.StatusCreated, "Carteira criada com sucesso", response)
 }
+
+
 
 // Login autentica um usuário
 func (h *WalletHandler) Login(w http.ResponseWriter, r *http.Request) {

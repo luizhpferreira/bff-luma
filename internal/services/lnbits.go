@@ -14,23 +14,22 @@ import (
 // LNBitsService representa o serviço de integração com LNBits
 type LNBitsService struct {
 	baseURL        string
-	adminKey       string
+	apiToken       string
 	webhookSecret  string
 	httpClient     *http.Client
 }
 
-// LNBitsWalletResponse representa a resposta da criação de carteira no LNBits
-type LNBitsWalletResponse struct {
-	ID        string `json:"id"`
-	User      string `json:"user"`
-	Name      string `json:"name"`
-	AdminKey  string `json:"adminkey"`
-	InKey     string `json:"inkey"`
-	Deleted   bool   `json:"deleted"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
-	Currency  string `json:"currency"`
-	BalanceMsat int64 `json:"balance_msat"`
+// LNBitsUserResponse representa a resposta da criação de usuário no LNBits
+type LNBitsUserResponse struct {
+	ID              string                 `json:"id"`
+	Email           *string                `json:"email"`
+	Username        string                 `json:"username"`
+	Password        string                 `json:"password"`
+	PasswordRepeat  string                 `json:"password_repeat"`
+	PubKey          *string                `json:"pubkey"`
+	ExternalID      *string                `json:"external_id"`
+	Extensions      *string                `json:"extensions"`
+	Extra           map[string]interface{} `json:"extra"`
 }
 
 // LNBitsInvoiceRequest representa a requisição para criar invoice no LNBits
@@ -60,11 +59,27 @@ type LNBitsPaymentResponse struct {
 	Preimage string `json:"preimage"`
 }
 
+// LNBitsChannelRequest representa a requisição para criar canal no LNBits
+type LNBitsChannelRequest struct {
+	NodeURI string `json:"node_uri"`
+	Amount  int64  `json:"amount"`
+	Private bool   `json:"private"`
+}
+
+// LNBitsChannelResponse representa a resposta da criação de canal
+type LNBitsChannelResponse struct {
+	ChannelID string `json:"channel_id"`
+	NodeURI   string `json:"node_uri"`
+	Amount    int64  `json:"amount"`
+	Private   bool   `json:"private"`
+	Status    string `json:"status"`
+}
+
 // NewLNBitsService cria um novo serviço LNBits
-func NewLNBitsService(baseURL, adminKey, webhookSecret string) *LNBitsService {
+func NewLNBitsService(baseURL, apiToken, webhookSecret string) *LNBitsService {
 	return &LNBitsService{
 		baseURL:       baseURL,
-		adminKey:      adminKey,
+		apiToken:      apiToken,
 		webhookSecret: webhookSecret,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
@@ -72,13 +87,13 @@ func NewLNBitsService(baseURL, adminKey, webhookSecret string) *LNBitsService {
 	}
 }
 
-// CreateWallet cria uma nova carteira no LNBits
+// CreateWallet cria um novo usuário no LNBits
 func (s *LNBitsService) CreateWallet(username, password string) (*models.Wallet, error) {
-	url := fmt.Sprintf("%s/api/v1/wallet", s.baseURL)
+	url := fmt.Sprintf("%s/users/api/v1/user", s.baseURL)
 	
 	payload := map[string]interface{}{
-		"username": username,
-		"password": password,
+		"username":        username,
+		"password":        password,
 		"password_repeat": password,
 	}
 
@@ -93,7 +108,8 @@ func (s *LNBitsService) CreateWallet(username, password string) (*models.Wallet,
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Api-Key", s.adminKey)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.apiToken))
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
@@ -106,15 +122,17 @@ func (s *LNBitsService) CreateWallet(username, password string) (*models.Wallet,
 		return nil, fmt.Errorf("erro na resposta do LNBits: %d - %s", resp.StatusCode, string(body))
 	}
 
-	var lnbitsResp LNBitsWalletResponse
+	var lnbitsResp LNBitsUserResponse
 	if err := json.NewDecoder(resp.Body).Decode(&lnbitsResp); err != nil {
 		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
 	}
 
+	// Com a criação do usuário, precisamos criar uma wallet para ele
+	// O ID do usuário será usado como wallet_id
 	wallet := &models.Wallet{
 		WalletID:   lnbitsResp.ID,
-		AdminKey:   lnbitsResp.AdminKey,
-		InvoiceKey: lnbitsResp.InKey,
+		AdminKey:   lnbitsResp.ID, // Temporário - precisaremos obter a wallet real
+		InvoiceKey: lnbitsResp.ID, // Temporário - precisaremos obter a wallet real
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
@@ -211,4 +229,48 @@ func (s *LNBitsService) CheckPayment(invoiceKey, paymentHash string) (*models.Pa
 	}
 
 	return paymentStatus, nil
+}
+
+
+
+// CreateChannel cria um canal Lightning para um usuário específico
+func (s *LNBitsService) CreateChannel(adminKey, nodeURI string, amount int64, private bool) (*LNBitsChannelResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/channels", s.baseURL)
+	
+	payload := LNBitsChannelRequest{
+		NodeURI: nodeURI,
+		Amount:  amount,
+		Private: private,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao serializar payload: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar requisição: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Api-Key", adminKey) // Usa admin key da wallet do usuário
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao fazer requisição: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("erro na resposta do LNBits: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var lnbitsResp LNBitsChannelResponse
+	if err := json.NewDecoder(resp.Body).Decode(&lnbitsResp); err != nil {
+		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
+	}
+
+	return &lnbitsResp, nil
 }

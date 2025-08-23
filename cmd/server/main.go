@@ -25,14 +25,14 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// Inicializa banco de dados
-	db, err := database.NewDatabase(cfg.DatabaseURL)
+	db, err := database.NewDatabase(cfg.DatabasePath)
 	if err != nil {
 		log.Fatalf("Erro ao inicializar banco de dados: %v", err)
 	}
 	defer db.Close()
 
 	// Inicializa serviços
-	lnbitsService := services.NewLNBitsService(cfg.LNBitsBaseURL, cfg.LNBitsAdminKey, cfg.LNBitsWebhookSecret)
+	lnbitsService := services.NewLNBitsService(cfg.LNBitsBaseURL, cfg.LNBitsAPIToken, cfg.LNBitsWebhookSecret)
 	jwtService := services.NewJWTService(cfg.JWTSecret)
 	emailService := services.NewEmailService(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword, cfg.SMTPFromEmail, cfg.SMTPFromName, cfg.SMTPUseTLS)
 	passwordService := services.NewPasswordService()
@@ -93,6 +93,7 @@ func main() {
 			r.Get("/wallets", walletHandler.GetWalletInfo)
 			r.Post("/invoices", walletHandler.CreateInvoice)
 			r.Get("/payments/status", walletHandler.CheckPaymentStatus)
+
 		})
 	})
 

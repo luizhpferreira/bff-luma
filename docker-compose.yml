@@ -35,7 +35,8 @@ services:
     environment:
       - APP_PORT=${APP_PORT:-8080}
       - LNBITS_BASE_URL=${LNBITS_BASE_URL}
-      - LNBITS_ADMIN_KEY=${LNBITS_ADMIN_KEY}
+      - LNBITS_API_TOKEN=${LNBITS_API_TOKEN}
+
       - DATABASE_URL=${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/bff_luma?sslmode=disable}
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT:-587}

@@ -12,9 +12,9 @@ type Config struct {
 	AppPort           string
 	JWTSecret         string
 	LNBitsBaseURL     string
-	LNBitsAdminKey    string
+	LNBitsAPIToken    string
 	LNBitsWebhookSecret string
-	DatabaseURL       string
+	DatabasePath      string
 	// Configurações SMTP
 	SMTPHost          string
 	SMTPPort          string
@@ -36,9 +36,9 @@ func LoadConfig() *Config {
 		AppPort:           getEnv("APP_PORT", "8080"),
 		JWTSecret:         getEnv("JWT_SECRET", "supersecreto123456789"),
 		LNBitsBaseURL:     getEnv("LNBITS_BASE_URL", "http://127.0.0.1:5000"),
-		LNBitsAdminKey:    getEnv("LNBITS_ADMIN_KEY", ""),
+		LNBitsAPIToken:    getEnv("LNBITS_API_TOKEN", ""),
 		LNBitsWebhookSecret: getEnv("LNBITS_WEBHOOK_SECRET", ""),
-		DatabaseURL:       getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/bff_luma?sslmode=disable"),
+		DatabasePath:      getEnv("DATABASE_PATH", "./bff_luma.db"),
 		// Configurações SMTP
 		SMTPHost:          getEnv("SMTP_HOST", ""),
 		SMTPPort:          getEnv("SMTP_PORT", "587"),
