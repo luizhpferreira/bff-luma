@@ -7,6 +7,7 @@ import (
 // Wallet representa uma carteira Lightning
 type Wallet struct {
 	ID         int       `json:"id" db:"id"`
+	CPF        string    `json:"cpf" db:"cpf"`
 	Email      string    `json:"email" db:"email"`
 	Password   string    `json:"-" db:"password"` // Hash da senha, nunca exposto
 	WalletID   string    `json:"wallet_id" db:"wallet_id"`
@@ -19,13 +20,14 @@ type Wallet struct {
 // CreateWalletRequest representa a requisição para criar uma carteira
 type CreateWalletRequest struct {
 	Username        string `json:"username" validate:"required"` // CPF do usuário
+	Email           string `json:"email" validate:"required,email"` // Email do usuário
 	Password        string `json:"password" validate:"required,min=8"`
 	PasswordRepeat  string `json:"password_repeat" validate:"required"`
 }
 
 // LoginRequest representa a requisição de login
 type LoginRequest struct {
-	Email    string `json:"email" validate:"required"` // Campo usado para CPF
+	Email    string `json:"email" validate:"required"` // Campo usado para CPF (não email)
 	Password string `json:"password" validate:"required"`
 }
 
@@ -40,6 +42,7 @@ type CreateWalletResponse struct {
 type LoginResponse struct {
 	WalletID string `json:"wallet_id"`
 	Email    string `json:"email"`
+	Username string `json:"username"` // CPF do usuário
 	Token    string `json:"token"`
 	Message  string `json:"message"`
 }

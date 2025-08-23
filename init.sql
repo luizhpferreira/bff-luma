@@ -13,6 +13,7 @@
 -- Tabela de carteiras
 CREATE TABLE IF NOT EXISTS wallets (
     id SERIAL PRIMARY KEY,
+    cpf TEXT NOT NULL UNIQUE,
     email TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
     wallet_id TEXT NOT NULL UNIQUE,
@@ -33,6 +34,7 @@ CREATE TABLE IF NOT EXISTS reset_tokens (
 );
 
 -- Índices para melhor performance
+CREATE INDEX IF NOT EXISTS idx_wallets_cpf ON wallets(cpf);
 CREATE INDEX IF NOT EXISTS idx_wallets_email ON wallets(email);
 CREATE INDEX IF NOT EXISTS idx_wallets_wallet_id ON wallets(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON reset_tokens(token);

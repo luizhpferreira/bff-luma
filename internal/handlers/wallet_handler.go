@@ -42,17 +42,22 @@ func (h *WalletHandler) CreateWallet(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Debug: log do request
-	log.Printf("DEBUG: Request recebido - Username: %s, Password: %s", req.Username, req.Password)
+	log.Printf("DEBUG: Request recebido - Username: %s, Email: %s, Password: %s", req.Username, req.Email, req.Password)
 
 	// Validação básica
 	if req.Username == "" {
-		respondWithError(w, http.StatusBadRequest, "username é obrigatório", "")
+		respondWithError(w, http.StatusBadRequest, "CPF é obrigatório", "")
 		return
 	}
 
 	// Validar se o username é um CPF válido
 	if err := h.walletService.ValidateCPF(req.Username); err != nil {
 		respondWithError(w, http.StatusBadRequest, "CPF inválido", err.Error())
+		return
+	}
+
+	if req.Email == "" {
+		respondWithError(w, http.StatusBadRequest, "email é obrigatório", "")
 		return
 	}
 
@@ -79,7 +84,7 @@ func (h *WalletHandler) CreateWallet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Cria a carteira (cada usuário terá sua própria wallet no LNBits)
-	wallet, err := h.walletService.CreateWallet(req.Username, req.Password)
+	wallet, err := h.walletService.CreateWallet(req.Username, req.Email, req.Password)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Erro ao criar carteira", err.Error())
 		return
@@ -115,7 +120,7 @@ func (h *WalletHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validar se o email (que agora é CPF) é um CPF válido
+	// Validar se o CPF é válido
 	if err := h.walletService.ValidateCPF(req.Email); err != nil {
 		respondWithError(w, http.StatusBadRequest, "CPF inválido", err.Error())
 		return

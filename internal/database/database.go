@@ -8,7 +8,7 @@ import (
 
 	"bff-luma/internal/models"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
 )
 
 // Database representa a conexão com o banco de dados
@@ -18,7 +18,7 @@ type Database struct {
 
 // NewDatabase cria uma nova conexão com o banco de dados
 func NewDatabase(dbURL string) (*Database, error) {
-	db, err := sql.Open("sqlite3", dbURL)
+	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao abrir banco de dados: %w", err)
 	}
@@ -39,25 +39,27 @@ func NewDatabase(dbURL string) (*Database, error) {
 func (d *Database) createTables() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS wallets (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		id SERIAL PRIMARY KEY,
+		cpf TEXT NOT NULL UNIQUE,
 		email TEXT NOT NULL UNIQUE,
 		password TEXT NOT NULL,
 		wallet_id TEXT NOT NULL UNIQUE,
 		admin_key TEXT NOT NULL,
 		invoice_key TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 
 	CREATE TABLE IF NOT EXISTS reset_tokens (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		id SERIAL PRIMARY KEY,
 		email TEXT NOT NULL,
 		token TEXT NOT NULL UNIQUE,
-		expires_at DATETIME NOT NULL,
+		expires_at TIMESTAMP NOT NULL,
 		used BOOLEAN DEFAULT FALSE,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 
+	CREATE INDEX IF NOT EXISTS idx_wallets_cpf ON wallets(cpf);
 	CREATE INDEX IF NOT EXISTS idx_wallets_email ON wallets(email);
 	CREATE INDEX IF NOT EXISTS idx_wallets_wallet_id ON wallets(wallet_id);
 	CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON reset_tokens(token);
@@ -71,12 +73,12 @@ func (d *Database) createTables() error {
 // CreateWallet cria uma nova carteira no banco de dados
 func (d *Database) CreateWallet(wallet *models.Wallet) error {
 	query := `
-	INSERT INTO wallets (email, password, wallet_id, admin_key, invoice_key, created_at, updated_at)
-	VALUES (?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO wallets (cpf, email, password, wallet_id, admin_key, invoice_key, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
 	now := time.Now()
-	_, err := d.db.Exec(query, wallet.Email, wallet.Password, wallet.WalletID, wallet.AdminKey, wallet.InvoiceKey, now, now)
+	_, err := d.db.Exec(query, wallet.CPF, wallet.Email, wallet.Password, wallet.WalletID, wallet.AdminKey, wallet.InvoiceKey, now, now)
 	if err != nil {
 		return fmt.Errorf("erro ao criar carteira: %w", err)
 	}
@@ -87,13 +89,44 @@ func (d *Database) CreateWallet(wallet *models.Wallet) error {
 // GetWalletByEmail obtém uma carteira pelo email
 func (d *Database) GetWalletByEmail(email string) (*models.Wallet, error) {
 	query := `
-	SELECT id, email, password, wallet_id, admin_key, invoice_key, created_at, updated_at
-	FROM wallets WHERE email = ?
+	SELECT id, cpf, email, password, wallet_id, admin_key, invoice_key, created_at, updated_at
+	FROM wallets WHERE email = $1
 	`
 
 	wallet := &models.Wallet{}
 	err := d.db.QueryRow(query, email).Scan(
 		&wallet.ID,
+		&wallet.CPF,
+		&wallet.Email,
+		&wallet.Password,
+		&wallet.WalletID,
+		&wallet.AdminKey,
+		&wallet.InvoiceKey,
+		&wallet.CreatedAt,
+		&wallet.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("erro ao buscar carteira: %w", err)
+	}
+
+	return wallet, nil
+}
+
+// GetWalletByCPF obtém uma carteira pelo CPF
+func (d *Database) GetWalletByCPF(cpf string) (*models.Wallet, error) {
+	query := `
+	SELECT id, cpf, email, password, wallet_id, admin_key, invoice_key, created_at, updated_at
+	FROM wallets WHERE cpf = $1
+	`
+
+	wallet := &models.Wallet{}
+	err := d.db.QueryRow(query, cpf).Scan(
+		&wallet.ID,
+		&wallet.CPF,
 		&wallet.Email,
 		&wallet.Password,
 		&wallet.WalletID,
@@ -116,13 +149,14 @@ func (d *Database) GetWalletByEmail(email string) (*models.Wallet, error) {
 // GetWalletByWalletID obtém uma carteira pelo wallet_id
 func (d *Database) GetWalletByWalletID(walletID string) (*models.Wallet, error) {
 	query := `
-	SELECT id, email, password, wallet_id, admin_key, invoice_key, created_at, updated_at
-	FROM wallets WHERE wallet_id = ?
+	SELECT id, cpf, email, password, wallet_id, admin_key, invoice_key, created_at, updated_at
+	FROM wallets WHERE wallet_id = $1
 	`
 
 	wallet := &models.Wallet{}
 	err := d.db.QueryRow(query, walletID).Scan(
 		&wallet.ID,
+		&wallet.CPF,
 		&wallet.Email,
 		&wallet.Password,
 		&wallet.WalletID,
@@ -142,12 +176,12 @@ func (d *Database) GetWalletByWalletID(walletID string) (*models.Wallet, error) 
 	return wallet, nil
 }
 
-// WalletExists verifica se uma carteira existe pelo email
-func (d *Database) WalletExists(email string) (bool, error) {
-	query := `SELECT COUNT(*) FROM wallets WHERE email = ?`
+// WalletExists verifica se uma carteira existe pelo CPF
+func (d *Database) WalletExists(cpf string) (bool, error) {
+	query := `SELECT COUNT(*) FROM wallets WHERE cpf = $1`
 	
 	var count int
-	err := d.db.QueryRow(query, email).Scan(&count)
+	err := d.db.QueryRow(query, cpf).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("erro ao verificar existência da carteira: %w", err)
 	}
@@ -159,7 +193,7 @@ func (d *Database) WalletExists(email string) (bool, error) {
 func (d *Database) CreateResetToken(email, token string, expiresAt time.Time) error {
 	query := `
 	INSERT INTO reset_tokens (email, token, expires_at, created_at)
-	VALUES (?, ?, ?, ?)
+	VALUES ($1, $2, $3, $4)
 	`
 
 	_, err := d.db.Exec(query, email, token, expiresAt, time.Now())
@@ -175,7 +209,7 @@ func (d *Database) GetResetToken(token string) (string, time.Time, bool, error) 
 	query := `
 	SELECT email, expires_at, used
 	FROM reset_tokens 
-	WHERE token = ? AND used = FALSE AND expires_at > ?
+	WHERE token = $1 AND used = FALSE AND expires_at > $2
 	`
 
 	var email string
@@ -195,7 +229,7 @@ func (d *Database) GetResetToken(token string) (string, time.Time, bool, error) 
 
 // MarkResetTokenAsUsed marca um token como usado
 func (d *Database) MarkResetTokenAsUsed(token string) error {
-	query := `UPDATE reset_tokens SET used = TRUE WHERE token = ?`
+	query := `UPDATE reset_tokens SET used = TRUE WHERE token = $1`
 
 	_, err := d.db.Exec(query, token)
 	if err != nil {

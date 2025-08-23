@@ -81,14 +81,14 @@ func (s *WalletService) ValidateCPF(cpf string) error {
 }
 
 // CreateWallet cria uma nova carteira para o usuário
-func (s *WalletService) CreateWallet(username, password string) (*models.Wallet, error) {
+func (s *WalletService) CreateWallet(username, email, password string) (*models.Wallet, error) {
 	// Verifica se a carteira já existe
 	exists, err := s.db.WalletExists(username)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao verificar existência da carteira: %w", err)
 	}
 	if exists {
-		return nil, fmt.Errorf("carteira já existe para este username")
+		return nil, fmt.Errorf("carteira já existe para este CPF")
 	}
 
 	// Cria usuário individual no LNBits usando o username fornecido
@@ -105,7 +105,8 @@ func (s *WalletService) CreateWallet(username, password string) (*models.Wallet,
 	}
 
 	// Salva no banco de dados
-	wallet.Email = username // Usando username como email no banco
+	wallet.CPF = username    // CPF do usuário
+	wallet.Email = email     // Email do usuário
 	wallet.Password = hashedPassword
 
 	if err := s.db.CreateWallet(wallet); err != nil {
@@ -114,12 +115,12 @@ func (s *WalletService) CreateWallet(username, password string) (*models.Wallet,
 
 	// Envia email de boas-vindas (desabilitado por enquanto)
 	// go func() {
-	// 	if err := s.email.SendWelcomeEmail(username, wallet.WalletID); err != nil {
-	// 		log.Printf("⚠️ Erro ao enviar email de boas-vindas para %s: %v", username, err)
+	// 	if err := s.email.SendWelcomeEmail(email, wallet.WalletID); err != nil {
+	// 		log.Printf("⚠️ Erro ao enviar email de boas-vindas para %s: %v", email, err)
 	// 	}
 	// }()
 
-	log.Printf("Carteira criada com sucesso para username %s: %s", username, wallet.WalletID)
+	log.Printf("Carteira criada com sucesso para CPF %s e email %s: %s", username, email, wallet.WalletID)
 
 	return wallet, nil
 }
@@ -170,13 +171,19 @@ func (s *WalletService) CheckPaymentStatus(email, paymentHash string) (*models.P
 
 // Login autentica um usuário
 func (s *WalletService) Login(req *models.LoginRequest) (*models.LoginResponse, error) {
-	wallet, err := s.db.GetWalletByEmail(req.Email)
+	// Remove formatação do CPF se houver
+	cleanCPF := strings.ReplaceAll(req.Email, ".", "")
+	cleanCPF = strings.ReplaceAll(cleanCPF, "-", "")
+	cleanCPF = strings.ReplaceAll(cleanCPF, " ", "")
+	
+	// Busca a carteira pelo CPF
+	wallet, err := s.db.GetWalletByCPF(cleanCPF)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao buscar carteira: %w", err)
+		return nil, fmt.Errorf("erro ao buscar carteira por CPF: %w", err)
 	}
 
 	if wallet == nil {
-		return nil, fmt.Errorf("carteira não encontrada para o email %s", req.Email)
+		return nil, fmt.Errorf("carteira não encontrada para o CPF %s", req.Email)
 	}
 
 	// Verifica a senha usando bcrypt
@@ -193,6 +200,7 @@ func (s *WalletService) Login(req *models.LoginRequest) (*models.LoginResponse, 
 	response := &models.LoginResponse{
 		WalletID: wallet.WalletID,
 		Email:    wallet.Email,
+		Username: wallet.CPF, // CPF do usuário
 		Token:    token,
 		Message:  "Login realizado com sucesso",
 	}

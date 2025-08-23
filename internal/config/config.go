@@ -38,7 +38,7 @@ func LoadConfig() *Config {
 		LNBitsBaseURL:     getEnv("LNBITS_BASE_URL", "http://127.0.0.1:5000"),
 		LNBitsAPIToken:    getEnv("LNBITS_API_TOKEN", ""),
 		LNBitsWebhookSecret: getEnv("LNBITS_WEBHOOK_SECRET", ""),
-		DatabasePath:      getEnv("DATABASE_PATH", "./bff_luma.db"),
+		DatabasePath:      getEnv("DATABASE_URL", "postgresql://bff_luma:bff_luma@localhost:5432/bff_luma?sslmode=disable"),
 		// Configurações SMTP
 		SMTPHost:          getEnv("SMTP_HOST", ""),
 		SMTPPort:          getEnv("SMTP_PORT", "587"),
