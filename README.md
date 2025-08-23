@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # BFF Luma
 
 Backend for Frontend (BFF) para integração com LNBits, fornecendo uma API REST para gerenciamento de carteiras Lightning.
@@ -404,3 +405,6 @@ make docker-up
 ## Licença
 
 Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
+=======
+# lm-app
+>>>>>>> origin/main
