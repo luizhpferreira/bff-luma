@@ -6,15 +6,18 @@ import (
 
 // Wallet representa uma carteira Lightning
 type Wallet struct {
-	ID         int       `json:"id" db:"id"`
-	CPF        string    `json:"cpf" db:"cpf"`
-	Email      string    `json:"email" db:"email"`
-	Password   string    `json:"-" db:"password"` // Hash da senha, nunca exposto
-	WalletID   string    `json:"wallet_id" db:"wallet_id"`
-	AdminKey   string    `json:"-" db:"admin_key"` // Nunca exposto para o frontend
-	InvoiceKey string    `json:"-" db:"invoice_key"` // Nunca exposto para o frontend
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
+	ID                        int       `json:"id" db:"id"`
+	CPF                       string    `json:"cpf" db:"cpf"`
+	Email                     string    `json:"email" db:"email"`
+	Password                  string    `json:"-" db:"password"` // Hash da senha, nunca exposto
+	WalletID                  string    `json:"wallet_id" db:"wallet_id"`
+	AdminKey                  string    `json:"-" db:"admin_key"` // Nunca exposto para o frontend
+	InvoiceKey                string    `json:"-" db:"invoice_key"` // Nunca exposto para o frontend
+	EmailConfirmed            bool      `json:"email_confirmed" db:"email_confirmed"`
+	EmailConfirmationToken    *string   `json:"-" db:"email_confirmation_token"`
+	EmailConfirmationExpiresAt *time.Time `json:"-" db:"email_confirmation_expires_at"`
+	CreatedAt                 time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt                 time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // CreateWalletRequest representa a requisição para criar uma carteira
@@ -93,4 +96,15 @@ type ForgotPasswordResponse struct {
 // ResetPasswordResponse representa a resposta de reset de senha
 type ResetPasswordResponse struct {
 	Message string `json:"message"`
+}
+
+// ConfirmEmailRequest representa a requisição de confirmação de email
+type ConfirmEmailRequest struct {
+	Token string `json:"token" validate:"required"`
+}
+
+// ConfirmEmailResponse representa a resposta de confirmação de email
+type ConfirmEmailResponse struct {
+	Message string `json:"message"`
+	Email   string `json:"email"`
 }

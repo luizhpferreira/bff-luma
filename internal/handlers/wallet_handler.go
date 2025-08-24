@@ -99,6 +99,45 @@ func (h *WalletHandler) CreateWallet(w http.ResponseWriter, r *http.Request) {
 	respondWithSuccess(w, http.StatusCreated, "Carteira criada com sucesso", response)
 }
 
+// ConfirmEmail confirma o email do usuário
+func (h *WalletHandler) ConfirmEmail(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.ConfirmEmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Erro ao decodificar requisição", err.Error())
+		return
+	}
+
+	if req.Token == "" {
+		respondWithError(w, http.StatusBadRequest, "Token é obrigatório", "")
+		return
+	}
+
+	// Busca a carteira antes de confirmar para obter o email
+	wallet, err := h.walletService.GetWalletByEmailConfirmationToken(req.Token)
+	if err != nil || wallet == nil {
+		respondWithError(w, http.StatusBadRequest, "Token inválido ou expirado", "")
+		return
+	}
+
+	// Confirma o email
+	if err := h.walletService.ConfirmEmail(req.Token); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Erro ao confirmar email", err.Error())
+		return
+	}
+
+	response := &models.ConfirmEmailResponse{
+		Message: "Email confirmado com sucesso!",
+		Email:   wallet.Email,
+	}
+
+	respondWithSuccess(w, http.StatusOK, "Email confirmado com sucesso", response)
+}
+
 
 
 // Login autentica um usuário

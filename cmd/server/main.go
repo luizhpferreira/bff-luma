@@ -80,6 +80,7 @@ func main() {
 		r.Post("/refresh", walletHandler.RefreshToken)
 		r.Post("/forgot-password", walletHandler.ForgotPassword)
 		r.Post("/reset-password", walletHandler.ResetPassword)
+		r.Post("/confirm-email", walletHandler.ConfirmEmail)
 		
 		// Rotas de administração (limpeza e rate limit stats)
 		r.Post("/admin/cleanup", walletHandler.CleanupTokens)

@@ -72,6 +72,22 @@ func (s *EmailService) SendWelcomeEmail(email, walletID string) error {
 	return s.sendEmail(email, subject, body)
 }
 
+// SendEmailConfirmation envia email de confirmação
+func (s *EmailService) SendEmailConfirmation(email, token string) error {
+	if !s.enabled {
+		// Modo simulado
+		log.Printf("📧 Email de confirmação enviado para: %s", email)
+		log.Printf("🔑 Token de confirmação: %s", token)
+		log.Printf("🌐 Link de confirmação: http://localhost:3000/confirm-email?token=%s", token)
+		return nil
+	}
+
+	subject := "Confirme seu email - BFF Luma"
+	body := s.buildEmailConfirmationBody(email, token)
+	
+	return s.sendEmail(email, subject, body)
+}
+
 // ValidateEmail valida formato de email (simples)
 func (s *EmailService) ValidateEmail(email string) bool {
 	// Validação básica de email
@@ -288,7 +304,8 @@ func (s *EmailService) buildWelcomeEmailBody(email, walletID string) string {
         </div>
         <div class="content">
             <p>Olá!</p>
-            <p>Sua conta foi criada com sucesso no <strong>BFF Luma</strong>!</p>
+            <p>🎉 <strong>Parabéns!</strong> Sua conta foi confirmada com sucesso no <strong>BFF Luma</strong>!</p>
+            <p>✅ Seu email foi verificado e sua conta está ativa.</p>
             <p>Agora você pode:</p>
             <ul>
                 <li>✅ Fazer login na sua conta</li>
@@ -319,4 +336,61 @@ func (s *EmailService) buildWelcomeEmailBody(email, walletID string) string {
     </div>
 </body>
 </html>`, email, walletID)
+}
+
+// buildEmailConfirmationBody constrói o corpo do email de confirmação
+func (s *EmailService) buildEmailConfirmationBody(email, token string) string {
+	confirmationLink := fmt.Sprintf("http://localhost:3000/confirm-email?token=%s", token)
+	
+	return fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Confirme seu Email</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #007bff; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f8f9fa; }
+        .button { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📧 Confirme seu Email</h1>
+        </div>
+        <div class="content">
+            <p>Olá!</p>
+            <p>Para completar o cadastro da sua conta no <strong>BFF Luma</strong>, por favor confirme seu email clicando no botão abaixo:</p>
+            <p><strong>Após a confirmação, você receberá um email de boas-vindas com mais informações sobre sua conta.</strong></p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="%s" class="button">✅ Confirmar Email</a>
+            </div>
+            
+            <div class="warning">
+                <strong>⚠️ Importante:</strong>
+                <ul>
+                    <li>Este link expira em <strong>24 horas</strong></li>
+                    <li>Use apenas em dispositivos confiáveis</li>
+                    <li>Não compartilhe este link com ninguém</li>
+                </ul>
+            </div>
+            
+            <p>Se o botão não funcionar, copie e cole este link no seu navegador:</p>
+            <p style="word-break: break-all; background: #f1f1f1; padding: 10px; border-radius: 3px;">%s</p>
+            
+            <p>Se você não criou uma conta no BFF Luma, pode ignorar este email.</p>
+        </div>
+        <div class="footer">
+            <p>Este email foi enviado automaticamente. Não responda a este email.</p>
+            <p>&copy; 2024 BFF Luma. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>`, confirmationLink, confirmationLink)
 }

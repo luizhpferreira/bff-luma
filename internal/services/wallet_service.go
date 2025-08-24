@@ -113,19 +113,30 @@ func (s *WalletService) CreateWallet(username, email, password string) (*models.
 		return nil, fmt.Errorf("erro ao salvar carteira no banco: %w", err)
 	}
 
-	// Envia email de boas-vindas
-	log.Printf("🚀 Iniciando envio de email de boas-vindas para %s", email)
+	// Gera token de confirmação de email
+	confirmationToken := uuid.New().String()
+	expiresAt := time.Now().Add(1 * time.Hour) // Token expira em 1 hora (mais seguro)
+	
+	// Salva o token no banco
+	if err := s.db.CreateEmailConfirmationToken(email, confirmationToken, expiresAt); err != nil {
+		log.Printf("⚠️ Erro ao salvar token de confirmação para %s: %v", email, err)
+	} else {
+		log.Printf("🔑 Token de confirmação criado para %s: %s", email, confirmationToken)
+	}
+
+	// Envia email de confirmação (email de boas-vindas será enviado após confirmação)
+	log.Printf("🚀 Iniciando envio de email de confirmação para %s", email)
 	log.Printf("🔍 Email service configurado: %v", s.email != nil)
 	go func() {
-		log.Printf("📧 Tentando enviar email de boas-vindas para %s", email)
+		log.Printf("📧 Tentando enviar email de confirmação para %s", email)
 		if s.email == nil {
 			log.Printf("❌ Email service é nil!")
 			return
 		}
-		if err := s.email.SendWelcomeEmail(email, wallet.WalletID); err != nil {
-			log.Printf("⚠️ Erro ao enviar email de boas-vindas para %s: %v", email, err)
+		if err := s.email.SendEmailConfirmation(email, confirmationToken); err != nil {
+			log.Printf("⚠️ Erro ao enviar email de confirmação para %s: %v", email, err)
 		} else {
-			log.Printf("📧 Email de boas-vindas enviado com sucesso para %s", email)
+			log.Printf("📧 Email de confirmação enviado com sucesso para %s", email)
 		}
 	}()
 
@@ -215,6 +226,48 @@ func (s *WalletService) Login(req *models.LoginRequest) (*models.LoginResponse, 
 	}
 
 	return response, nil
+}
+
+// ConfirmEmail confirma o email do usuário usando o token
+func (s *WalletService) ConfirmEmail(token string) error {
+	// Busca a carteira pelo token para obter o email
+	wallet, err := s.db.GetWalletByEmailConfirmationToken(token)
+	if err != nil {
+		return fmt.Errorf("erro ao buscar carteira por token: %w", err)
+	}
+	
+	if wallet == nil {
+		return fmt.Errorf("token inválido ou expirado")
+	}
+
+	// Confirma o email no banco de dados
+	if err := s.db.ConfirmEmail(token); err != nil {
+		return fmt.Errorf("erro ao confirmar email: %w", err)
+	}
+
+	log.Printf("✅ Email confirmado com sucesso para token: %s", token)
+
+	// Envia email de boas-vindas após a confirmação
+	log.Printf("🚀 Iniciando envio de email de boas-vindas para %s", wallet.Email)
+	go func() {
+		log.Printf("📧 Tentando enviar email de boas-vindas para %s", wallet.Email)
+		if s.email == nil {
+			log.Printf("❌ Email service é nil!")
+			return
+		}
+		if err := s.email.SendWelcomeEmail(wallet.Email, wallet.WalletID); err != nil {
+			log.Printf("⚠️ Erro ao enviar email de boas-vindas para %s: %v", wallet.Email, err)
+		} else {
+			log.Printf("📧 Email de boas-vindas enviado com sucesso para %s", wallet.Email)
+		}
+	}()
+
+	return nil
+}
+
+// GetWalletByEmailConfirmationToken obtém uma carteira pelo token de confirmação
+func (s *WalletService) GetWalletByEmailConfirmationToken(token string) (*models.Wallet, error) {
+	return s.db.GetWalletByEmailConfirmationToken(token)
 }
 
 // GetWalletInfo retorna informações da carteira (sem as chaves sensíveis)

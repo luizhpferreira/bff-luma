@@ -46,6 +46,9 @@ func (d *Database) createTables() error {
 		wallet_id TEXT NOT NULL UNIQUE,
 		admin_key TEXT NOT NULL,
 		invoice_key TEXT NOT NULL,
+		email_confirmed BOOLEAN DEFAULT FALSE,
+		email_confirmation_token TEXT,
+		email_confirmation_expires_at TIMESTAMP,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
@@ -73,12 +76,24 @@ func (d *Database) createTables() error {
 // CreateWallet cria uma nova carteira no banco de dados
 func (d *Database) CreateWallet(wallet *models.Wallet) error {
 	query := `
-	INSERT INTO wallets (cpf, email, password, wallet_id, admin_key, invoice_key, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	INSERT INTO wallets (cpf, email, password, wallet_id, admin_key, invoice_key, email_confirmed, email_confirmation_token, email_confirmation_expires_at, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
 	now := time.Now()
-	_, err := d.db.Exec(query, wallet.CPF, wallet.Email, wallet.Password, wallet.WalletID, wallet.AdminKey, wallet.InvoiceKey, now, now)
+	_, err := d.db.Exec(query, 
+		wallet.CPF, 
+		wallet.Email, 
+		wallet.Password, 
+		wallet.WalletID, 
+		wallet.AdminKey, 
+		wallet.InvoiceKey, 
+		wallet.EmailConfirmed,
+		wallet.EmailConfirmationToken,
+		wallet.EmailConfirmationExpiresAt,
+		now, 
+		now,
+	)
 	if err != nil {
 		return fmt.Errorf("erro ao criar carteira: %w", err)
 	}
@@ -86,10 +101,84 @@ func (d *Database) CreateWallet(wallet *models.Wallet) error {
 	return nil
 }
 
+// CreateEmailConfirmationToken cria um token de confirmação de email
+func (d *Database) CreateEmailConfirmationToken(email, token string, expiresAt time.Time) error {
+	query := `
+	UPDATE wallets 
+	SET email_confirmation_token = $1, email_confirmation_expires_at = $2, updated_at = $3
+	WHERE email = $4
+	`
+
+	_, err := d.db.Exec(query, token, expiresAt, time.Now(), email)
+	if err != nil {
+		return fmt.Errorf("erro ao criar token de confirmação de email: %w", err)
+	}
+
+	return nil
+}
+
+// ConfirmEmail confirma o email usando o token
+func (d *Database) ConfirmEmail(token string) error {
+	query := `
+	UPDATE wallets 
+	SET email_confirmed = TRUE, email_confirmation_token = NULL, email_confirmation_expires_at = NULL, updated_at = $1
+	WHERE email_confirmation_token = $2 AND email_confirmation_expires_at > $3
+	`
+
+	result, err := d.db.Exec(query, time.Now(), token, time.Now())
+	if err != nil {
+		return fmt.Errorf("erro ao confirmar email: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("erro ao verificar linhas afetadas: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("token inválido ou expirado")
+	}
+
+	return nil
+}
+
+// GetWalletByEmailConfirmationToken obtém uma carteira pelo token de confirmação
+func (d *Database) GetWalletByEmailConfirmationToken(token string) (*models.Wallet, error) {
+	query := `
+	SELECT id, cpf, email, password, wallet_id, admin_key, invoice_key, email_confirmed, email_confirmation_token, email_confirmation_expires_at, created_at, updated_at
+	FROM wallets WHERE email_confirmation_token = $1
+	`
+
+	wallet := &models.Wallet{}
+	err := d.db.QueryRow(query, token).Scan(
+		&wallet.ID,
+		&wallet.CPF,
+		&wallet.Email,
+		&wallet.Password,
+		&wallet.WalletID,
+		&wallet.AdminKey,
+		&wallet.InvoiceKey,
+		&wallet.EmailConfirmed,
+		&wallet.EmailConfirmationToken,
+		&wallet.EmailConfirmationExpiresAt,
+		&wallet.CreatedAt,
+		&wallet.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("erro ao buscar carteira por token: %w", err)
+	}
+
+	return wallet, nil
+}
+
 // GetWalletByEmail obtém uma carteira pelo email
 func (d *Database) GetWalletByEmail(email string) (*models.Wallet, error) {
 	query := `
-	SELECT id, cpf, email, password, wallet_id, admin_key, invoice_key, created_at, updated_at
+	SELECT id, cpf, email, password, wallet_id, admin_key, invoice_key, email_confirmed, email_confirmation_token, email_confirmation_expires_at, created_at, updated_at
 	FROM wallets WHERE email = $1
 	`
 
@@ -102,6 +191,9 @@ func (d *Database) GetWalletByEmail(email string) (*models.Wallet, error) {
 		&wallet.WalletID,
 		&wallet.AdminKey,
 		&wallet.InvoiceKey,
+		&wallet.EmailConfirmed,
+		&wallet.EmailConfirmationToken,
+		&wallet.EmailConfirmationExpiresAt,
 		&wallet.CreatedAt,
 		&wallet.UpdatedAt,
 	)
@@ -119,7 +211,7 @@ func (d *Database) GetWalletByEmail(email string) (*models.Wallet, error) {
 // GetWalletByCPF obtém uma carteira pelo CPF
 func (d *Database) GetWalletByCPF(cpf string) (*models.Wallet, error) {
 	query := `
-	SELECT id, cpf, email, password, wallet_id, admin_key, invoice_key, created_at, updated_at
+	SELECT id, cpf, email, password, wallet_id, admin_key, invoice_key, email_confirmed, email_confirmation_token, email_confirmation_expires_at, created_at, updated_at
 	FROM wallets WHERE cpf = $1
 	`
 
@@ -132,6 +224,9 @@ func (d *Database) GetWalletByCPF(cpf string) (*models.Wallet, error) {
 		&wallet.WalletID,
 		&wallet.AdminKey,
 		&wallet.InvoiceKey,
+		&wallet.EmailConfirmed,
+		&wallet.EmailConfirmationToken,
+		&wallet.EmailConfirmationExpiresAt,
 		&wallet.CreatedAt,
 		&wallet.UpdatedAt,
 	)
@@ -149,7 +244,7 @@ func (d *Database) GetWalletByCPF(cpf string) (*models.Wallet, error) {
 // GetWalletByWalletID obtém uma carteira pelo wallet_id
 func (d *Database) GetWalletByWalletID(walletID string) (*models.Wallet, error) {
 	query := `
-	SELECT id, cpf, email, password, wallet_id, admin_key, invoice_key, created_at, updated_at
+	SELECT id, cpf, email, password, wallet_id, admin_key, invoice_key, email_confirmed, email_confirmation_token, email_confirmation_expires_at, created_at, updated_at
 	FROM wallets WHERE wallet_id = $1
 	`
 
@@ -162,6 +257,9 @@ func (d *Database) GetWalletByWalletID(walletID string) (*models.Wallet, error) 
 		&wallet.WalletID,
 		&wallet.AdminKey,
 		&wallet.InvoiceKey,
+		&wallet.EmailConfirmed,
+		&wallet.EmailConfirmationToken,
+		&wallet.EmailConfirmationExpiresAt,
 		&wallet.CreatedAt,
 		&wallet.UpdatedAt,
 	)
