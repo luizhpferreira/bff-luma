@@ -68,6 +68,7 @@ func main() {
 
 	// Rotas
 	r.Get("/health", walletHandler.HealthCheck)
+	r.Get("/confirm-email", walletHandler.ConfirmEmailPage)
 
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {

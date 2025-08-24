@@ -340,7 +340,7 @@ func (s *EmailService) buildWelcomeEmailBody(email, walletID string) string {
 
 // buildEmailConfirmationBody constrói o corpo do email de confirmação
 func (s *EmailService) buildEmailConfirmationBody(email, token string) string {
-	confirmationLink := fmt.Sprintf("http://localhost:3000/confirm-email?token=%s", token)
+	confirmationLink := fmt.Sprintf("http://localhost:8080/confirm-email?token=%s", token)
 	
 	return fmt.Sprintf(`
 <!DOCTYPE html>
