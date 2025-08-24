@@ -91,9 +91,9 @@ func (s *WalletService) CreateWallet(username, email, password string) (*models.
 		return nil, fmt.Errorf("carteira já existe para este CPF")
 	}
 
-	// Cria usuário individual no LNBits usando o username fornecido
+	// Cria usuário individual no LNBits usando o username e email fornecidos
 	// Cada usuário terá sua própria wallet, mas compartilhará os canais do CLN
-	wallet, err := s.lnbits.CreateWallet(username, password)
+	wallet, err := s.lnbits.CreateWallet(username, email, password)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao criar carteira no LNBits: %w", err)
 	}
@@ -113,12 +113,21 @@ func (s *WalletService) CreateWallet(username, email, password string) (*models.
 		return nil, fmt.Errorf("erro ao salvar carteira no banco: %w", err)
 	}
 
-	// Envia email de boas-vindas (desabilitado por enquanto)
-	// go func() {
-	// 	if err := s.email.SendWelcomeEmail(email, wallet.WalletID); err != nil {
-	// 		log.Printf("⚠️ Erro ao enviar email de boas-vindas para %s: %v", email, err)
-	// 	}
-	// }()
+	// Envia email de boas-vindas
+	log.Printf("🚀 Iniciando envio de email de boas-vindas para %s", email)
+	log.Printf("🔍 Email service configurado: %v", s.email != nil)
+	go func() {
+		log.Printf("📧 Tentando enviar email de boas-vindas para %s", email)
+		if s.email == nil {
+			log.Printf("❌ Email service é nil!")
+			return
+		}
+		if err := s.email.SendWelcomeEmail(email, wallet.WalletID); err != nil {
+			log.Printf("⚠️ Erro ao enviar email de boas-vindas para %s: %v", email, err)
+		} else {
+			log.Printf("📧 Email de boas-vindas enviado com sucesso para %s", email)
+		}
+	}()
 
 	log.Printf("Carteira criada com sucesso para CPF %s e email %s: %s", username, email, wallet.WalletID)
 

@@ -88,11 +88,12 @@ func NewLNBitsService(baseURL, apiToken, webhookSecret string) *LNBitsService {
 }
 
 // CreateWallet cria um novo usuário no LNBits
-func (s *LNBitsService) CreateWallet(username, password string) (*models.Wallet, error) {
+func (s *LNBitsService) CreateWallet(username, email, password string) (*models.Wallet, error) {
 	url := fmt.Sprintf("%s/users/api/v1/user", s.baseURL)
 	
 	payload := map[string]interface{}{
 		"username":        username,
+		"email":           email,
 		"password":        password,
 		"password_repeat": password,
 	}

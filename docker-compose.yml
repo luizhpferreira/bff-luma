@@ -60,7 +60,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # Cloudflare Tunnel
+ # Cloudflare Tunnel
 #  cloudflared:
 #    image: cloudflare/cloudflared:latest
 #    container_name: bff_luma_cloudflared
