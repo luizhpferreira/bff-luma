@@ -61,19 +61,19 @@ services:
       retries: 3
 
  # Cloudflare Tunnel
-#  cloudflared:
-#    image: cloudflare/cloudflared:latest
-#    container_name: bff_luma_cloudflared
-#    restart: unless-stopped
-#    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
-#    environment:
-#      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-#    depends_on:
-#      - bff_luma
-#    networks:
-#      - bff_luma_network
-#    profiles:
-#      - tunnel
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: bff_luma_cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - bff_luma
+    networks:
+      - bff_luma_network
+    profiles:
+      - tunnel
 
 volumes:
   postgres_data:

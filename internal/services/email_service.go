@@ -17,10 +17,12 @@ type EmailService struct {
 	fromName  string
 	useTLS   bool
 	enabled  bool
+	appDomain string
+	appProtocol string
 }
 
 // NewEmailService cria um novo serviço de email
-func NewEmailService(host, port, username, password, fromEmail, fromName string, useTLS bool) *EmailService {
+func NewEmailService(host, port, username, password, fromEmail, fromName string, useTLS bool, appDomain, appProtocol string) *EmailService {
 	enabled := host != "" && username != "" && password != ""
 	
 	if enabled {
@@ -38,6 +40,8 @@ func NewEmailService(host, port, username, password, fromEmail, fromName string,
 		fromName:  fromName,
 		useTLS:    useTLS,
 		enabled:   enabled,
+		appDomain: appDomain,
+		appProtocol: appProtocol,
 	}
 }
 
@@ -47,7 +51,7 @@ func (s *EmailService) SendPasswordResetEmail(email, token string) error {
 		// Modo simulado
 		log.Printf("📧 Email de reset de senha enviado para: %s", email)
 		log.Printf("🔑 Token de reset: %s", token)
-		log.Printf("🌐 Link de reset: http://localhost:3000/reset-password?token=%s", token)
+		log.Printf("🌐 Link de reset: %s://%s/reset-password?token=%s", s.appProtocol, s.appDomain, token)
 		return nil
 	}
 
@@ -78,7 +82,7 @@ func (s *EmailService) SendEmailConfirmation(email, token string) error {
 		// Modo simulado
 		log.Printf("📧 Email de confirmação enviado para: %s", email)
 		log.Printf("🔑 Token de confirmação: %s", token)
-		log.Printf("🌐 Link de confirmação: http://localhost:3000/confirm-email?token=%s", token)
+		log.Printf("🌐 Link de confirmação: %s://%s/confirm-email?token=%s", s.appProtocol, s.appDomain, token)
 		return nil
 	}
 
@@ -227,7 +231,7 @@ func (s *EmailService) sendEmail(to, subject, body string) error {
 
 // buildPasswordResetEmailBody constrói o corpo do email de reset de senha
 func (s *EmailService) buildPasswordResetEmailBody(email, token string) string {
-	resetLink := fmt.Sprintf("http://localhost:3000/reset-password?token=%s", token)
+	resetLink := fmt.Sprintf("%s://%s/reset-password?token=%s", s.appProtocol, s.appDomain, token)
 	
 	return fmt.Sprintf(`
 <!DOCTYPE html>
@@ -340,7 +344,7 @@ func (s *EmailService) buildWelcomeEmailBody(email, walletID string) string {
 
 // buildEmailConfirmationBody constrói o corpo do email de confirmação
 func (s *EmailService) buildEmailConfirmationBody(email, token string) string {
-	confirmationLink := fmt.Sprintf("http://localhost:8080/confirm-email?token=%s", token)
+	confirmationLink := fmt.Sprintf("%s://%s/confirm-email?token=%s", s.appProtocol, s.appDomain, token)
 	
 	return fmt.Sprintf(`
 <!DOCTYPE html>

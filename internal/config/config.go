@@ -23,6 +23,9 @@ type Config struct {
 	SMTPFromEmail     string
 	SMTPFromName      string
 	SMTPUseTLS        bool
+	// Configurações de Domínio
+	AppDomain         string
+	AppProtocol       string
 }
 
 // LoadConfig carrega as configurações do arquivo .env
@@ -47,6 +50,9 @@ func LoadConfig() *Config {
 		SMTPFromEmail:     getEnv("SMTP_FROM_EMAIL", "noreply@bff-luma.com"),
 		SMTPFromName:      getEnv("SMTP_FROM_NAME", "BFF Luma"),
 		SMTPUseTLS:        getEnv("SMTP_USE_TLS", "true") == "true",
+		// Configurações de Domínio
+		AppDomain:         getEnv("APP_DOMAIN", "localhost"),
+		AppProtocol:       getEnv("APP_PROTOCOL", "http"),
 	}
 }
 
