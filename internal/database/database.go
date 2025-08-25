@@ -397,3 +397,105 @@ func (d *Database) Close() error {
 	log.Println("Fechando conexão com banco de dados...")
 	return d.db.Close()
 }
+
+// UnconfirmEmail desconfirma o email de um usuário (usado em caso de erro no LNBits)
+func (d *Database) UnconfirmEmail(email string) error {
+	query := `
+	UPDATE wallets 
+	SET email_confirmed = FALSE, updated_at = $1
+	WHERE email = $2
+	`
+
+	result, err := d.db.Exec(query, time.Now(), email)
+	if err != nil {
+		return fmt.Errorf("erro ao desconfirmar email: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("erro ao verificar linhas afetadas: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("email não encontrado")
+	}
+
+	return nil
+}
+
+// UpdateWalletLNBitsData atualiza os dados do LNBits na carteira
+func (d *Database) UpdateWalletLNBitsData(email, walletID, adminKey, invoiceKey string) error {
+	query := `
+	UPDATE wallets 
+	SET wallet_id = $1, admin_key = $2, invoice_key = $3, updated_at = $4
+	WHERE email = $5
+	`
+
+	result, err := d.db.Exec(query, walletID, adminKey, invoiceKey, time.Now(), email)
+	if err != nil {
+		return fmt.Errorf("erro ao atualizar dados do LNBits: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("erro ao verificar linhas afetadas: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("carteira não encontrada para o email %s", email)
+	}
+
+	return nil
+}
+
+// SaveOriginalPassword salva a senha original temporariamente
+func (d *Database) SaveOriginalPassword(email, password string) error {
+	query := `
+	INSERT INTO temp_passwords (email, password, expires_at)
+	VALUES ($1, $2, $3)
+	ON CONFLICT (email) DO UPDATE SET
+		password = EXCLUDED.password,
+		expires_at = EXCLUDED.expires_at,
+		created_at = CURRENT_TIMESTAMP
+	`
+
+	expiresAt := time.Now().Add(1 * time.Hour)
+	_, err := d.db.Exec(query, email, password, expiresAt)
+	if err != nil {
+		return fmt.Errorf("erro ao salvar senha original: %w", err)
+	}
+
+	return nil
+}
+
+// GetOriginalPassword obtém a senha original temporária
+func (d *Database) GetOriginalPassword(email string) (string, error) {
+	query := `
+	SELECT password
+	FROM temp_passwords 
+	WHERE email = $1 AND expires_at > $2
+	`
+
+	var password string
+	err := d.db.QueryRow(query, email, time.Now()).Scan(&password)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("senha original não encontrada ou expirada")
+		}
+		return "", fmt.Errorf("erro ao buscar senha original: %w", err)
+	}
+
+	return password, nil
+}
+
+// RemoveOriginalPassword remove a senha original temporária
+func (d *Database) RemoveOriginalPassword(email string) error {
+	query := `DELETE FROM temp_passwords WHERE email = $1`
+
+	_, err := d.db.Exec(query, email)
+	if err != nil {
+		return fmt.Errorf("erro ao remover senha original: %w", err)
+	}
+
+	return nil
+}

@@ -80,7 +80,7 @@ func (s *WalletService) ValidateCPF(cpf string) error {
 	return nil
 }
 
-// CreateWallet cria uma nova carteira para o usuário
+// CreateWallet cria uma nova carteira para o usuário (apenas dados básicos, sem LNBits)
 func (s *WalletService) CreateWallet(username, email, password string) (*models.Wallet, error) {
 	// Verifica se a carteira já existe
 	exists, err := s.db.WalletExists(username)
@@ -91,31 +91,33 @@ func (s *WalletService) CreateWallet(username, email, password string) (*models.
 		return nil, fmt.Errorf("carteira já existe para este CPF")
 	}
 
-	// Cria usuário individual no LNBits usando o username e email fornecidos
-	// Cada usuário terá sua própria wallet, mas compartilhará os canais do CLN
-	wallet, err := s.lnbits.CreateWallet(username, email, password)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao criar carteira no LNBits: %w", err)
-	}
-
 	// Gera hash da senha
 	hashedPassword, err := s.password.HashPassword(password)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao gerar hash da senha: %w", err)
 	}
 
-	// Salva no banco de dados
-	wallet.CPF = username    // CPF do usuário
-	wallet.Email = email     // Email do usuário
-	wallet.Password = hashedPassword
+	// Cria objeto wallet apenas com dados básicos (sem LNBits ainda)
+	wallet := &models.Wallet{
+		CPF:      username,        // CPF do usuário
+		Email:    email,           // Email do usuário
+		Password: hashedPassword,  // Senha hasheada
+		// WalletID, AdminKey, InvoiceKey serão preenchidos após confirmação
+	}
 
+	// Salva no banco de dados (apenas dados básicos)
 	if err := s.db.CreateWallet(wallet); err != nil {
-		return nil, fmt.Errorf("erro ao salvar carteira no banco: %w", err)
+		return nil, fmt.Errorf("erro ao salvar dados básicos no banco: %w", err)
+	}
+
+	// Salva a senha original temporariamente para uso na confirmação
+	if err := s.db.SaveOriginalPassword(email, password); err != nil {
+		log.Printf("⚠️ Erro ao salvar senha original temporária para %s: %v", email, err)
 	}
 
 	// Gera token de confirmação de email
 	confirmationToken := uuid.New().String()
-	expiresAt := time.Now().Add(1 * time.Hour) // Token expira em 1 hora (mais seguro)
+	expiresAt := time.Now().Add(1 * time.Hour) // Token expira em 1 hora
 	
 	// Salva o token no banco
 	if err := s.db.CreateEmailConfirmationToken(email, confirmationToken, expiresAt); err != nil {
@@ -124,9 +126,8 @@ func (s *WalletService) CreateWallet(username, email, password string) (*models.
 		log.Printf("🔑 Token de confirmação criado para %s: %s", email, confirmationToken)
 	}
 
-	// Envia email de confirmação (email de boas-vindas será enviado após confirmação)
+	// Envia email de confirmação
 	log.Printf("🚀 Iniciando envio de email de confirmação para %s", email)
-	log.Printf("🔍 Email service configurado: %v", s.email != nil)
 	go func() {
 		log.Printf("📧 Tentando enviar email de confirmação para %s", email)
 		if s.email == nil {
@@ -140,7 +141,7 @@ func (s *WalletService) CreateWallet(username, email, password string) (*models.
 		}
 	}()
 
-	log.Printf("Carteira criada com sucesso para CPF %s e email %s: %s", username, email, wallet.WalletID)
+	log.Printf("Dados básicos salvos para CPF %s e email %s (aguardando confirmação)", username, email)
 
 	return wallet, nil
 }
@@ -206,6 +207,16 @@ func (s *WalletService) Login(req *models.LoginRequest) (*models.LoginResponse, 
 		return nil, fmt.Errorf("carteira não encontrada para o CPF %s", req.Email)
 	}
 
+	// Verifica se o email foi confirmado
+	if !wallet.EmailConfirmed {
+		return nil, fmt.Errorf("email não confirmado. Verifique sua caixa de entrada e confirme seu email antes de fazer login")
+	}
+
+	// Verifica se a carteira foi criada no LNBits
+	if wallet.WalletID == "" {
+		return nil, fmt.Errorf("carteira não está ativa. Entre em contato com o suporte")
+	}
+
 	// Verifica a senha usando bcrypt
 	if err := s.password.CheckPassword(req.Password, wallet.Password); err != nil {
 		return nil, fmt.Errorf("senha incorreta")
@@ -228,7 +239,7 @@ func (s *WalletService) Login(req *models.LoginRequest) (*models.LoginResponse, 
 	return response, nil
 }
 
-// ConfirmEmail confirma o email do usuário usando o token
+// ConfirmEmail confirma o email do usuário e cria a carteira no LNBits
 func (s *WalletService) ConfirmEmail(token string) error {
 	// Busca a carteira pelo token para obter o email
 	wallet, err := s.db.GetWalletByEmailConfirmationToken(token)
@@ -246,6 +257,45 @@ func (s *WalletService) ConfirmEmail(token string) error {
 	}
 
 	log.Printf("✅ Email confirmado com sucesso para token: %s", token)
+
+	// Obtém a senha original para criar a carteira no LNBits
+	originalPassword, err := s.db.GetOriginalPassword(wallet.Email)
+	if err != nil {
+		log.Printf("❌ Erro ao obter senha original: %v", err)
+		if unconfirmErr := s.db.UnconfirmEmail(wallet.Email); unconfirmErr != nil {
+			log.Printf("⚠️ Erro ao desconfirmar email após falha: %v", unconfirmErr)
+		}
+		return fmt.Errorf("erro ao obter senha original: %w", err)
+	}
+
+	// Cria a carteira no LNBits após confirmação
+	log.Printf("🚀 Criando carteira no LNBits para %s", wallet.Email)
+	lnbitsWallet, err := s.lnbits.CreateWallet(wallet.CPF, wallet.Email, originalPassword)
+	if err != nil {
+		// Se falhar ao criar no LNBits, marca como não confirmado novamente
+		log.Printf("❌ Erro ao criar carteira no LNBits: %v", err)
+		if unconfirmErr := s.db.UnconfirmEmail(wallet.Email); unconfirmErr != nil {
+			log.Printf("⚠️ Erro ao desconfirmar email após falha no LNBits: %v", unconfirmErr)
+		}
+		return fmt.Errorf("erro ao criar carteira no LNBits: %w", err)
+	}
+
+	// Atualiza a carteira no banco com os dados do LNBits
+	wallet.WalletID = lnbitsWallet.WalletID
+	wallet.AdminKey = lnbitsWallet.AdminKey
+	wallet.InvoiceKey = lnbitsWallet.InvoiceKey
+	
+	if err := s.db.UpdateWalletLNBitsData(wallet.Email, wallet.WalletID, wallet.AdminKey, wallet.InvoiceKey); err != nil {
+		log.Printf("⚠️ Erro ao atualizar dados do LNBits no banco: %v", err)
+		// Não falha a operação, mas loga o erro
+	}
+
+	log.Printf("✅ Carteira criada no LNBits com sucesso: %s", wallet.WalletID)
+
+	// Remove a senha original temporária após sucesso
+	if err := s.db.RemoveOriginalPassword(wallet.Email); err != nil {
+		log.Printf("⚠️ Erro ao remover senha original temporária: %v", err)
+	}
 
 	// Envia email de boas-vindas após a confirmação
 	log.Printf("🚀 Iniciando envio de email de boas-vindas para %s", wallet.Email)
