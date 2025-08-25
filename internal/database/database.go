@@ -499,3 +499,24 @@ func (d *Database) RemoveOriginalPassword(email string) error {
 
 	return nil
 }
+
+// CleanUnconfirmedAccounts remove contas não confirmadas após 24h
+func (d *Database) CleanUnconfirmedAccounts() (int64, error) {
+	query := `
+	DELETE FROM wallets 
+	WHERE email_confirmed = FALSE 
+	AND created_at < NOW() - INTERVAL '24 hours'
+	`
+
+	result, err := d.db.Exec(query)
+	if err != nil {
+		return 0, fmt.Errorf("erro ao limpar contas não confirmadas: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("erro ao obter número de linhas afetadas: %w", err)
+	}
+
+	return rowsAffected, nil
+}
