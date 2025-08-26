@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"bff-luma/internal/models"
@@ -230,6 +231,113 @@ func (s *LNBitsService) CheckPayment(invoiceKey, paymentHash string) (*models.Pa
 	}
 
 	return paymentStatus, nil
+}
+
+// PayInvoice paga um invoice usando a carteira do usuário
+func (s *LNBitsService) PayInvoice(adminKey, paymentRequest string) (*models.PaymentResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/payments", s.baseURL)
+	
+	payload := map[string]interface{}{
+		"out":             true,
+		"payment_request": paymentRequest,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao serializar payload: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar requisição: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Api-Key", adminKey)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao fazer requisição: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("erro na resposta do LNBits: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var lnbitsResp LNBitsPaymentResponse
+	if err := json.NewDecoder(resp.Body).Decode(&lnbitsResp); err != nil {
+		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
+	}
+
+	payment := &models.PaymentResponse{
+		PaymentHash: lnbitsResp.Preimage, // Preimage é o hash do pagamento
+		Paid:        lnbitsResp.Paid,
+		Amount:      lnbitsResp.Amount,
+		Memo:        lnbitsResp.Memo,
+	}
+
+	return payment, nil
+}
+
+// CreateInvoiceKey cria uma nova invoice key para uma wallet
+func (s *LNBitsService) CreateInvoiceKey(adminKey, name, description string) (*models.InvoiceKey, error) {
+	// No LNBits, podemos criar uma nova "extension" ou usar uma abordagem diferente
+	// Por enquanto, vamos gerar uma nova invoice key baseada na admin key
+	// Em uma implementação real, você pode usar diferentes extensions do LNBits
+	
+	// Gerar um ID único para a invoice key
+	keyID := fmt.Sprintf("inkey_%s_%d", adminKey[:8], time.Now().Unix())
+	
+	// Para simplificar, vamos usar uma variação da admin key
+	// Em produção, você pode implementar uma lógica mais robusta
+	newInvoiceKey := fmt.Sprintf("%s_%s", adminKey, keyID)
+	
+	invoiceKey := &models.InvoiceKey{
+		ID:          keyID,
+		Name:        name,
+		InvoiceKey:  newInvoiceKey,
+		Description: description,
+		CreatedAt:   time.Now().Format(time.RFC3339),
+	}
+	
+	return invoiceKey, nil
+}
+
+// ListInvoiceKeys lista todas as invoice keys de uma wallet
+func (s *LNBitsService) ListInvoiceKeys(adminKey string) ([]models.InvoiceKey, error) {
+	// Por enquanto, vamos retornar uma lista vazia
+	// Em uma implementação real, você pode armazenar as invoice keys no banco de dados
+	// ou usar as extensions do LNBits
+	
+	var invoiceKeys []models.InvoiceKey
+	
+	// Adicionar a invoice key principal (admin key)
+	mainKey := models.InvoiceKey{
+		ID:          "main",
+		Name:        "Chave Principal",
+		InvoiceKey:  adminKey, // Usar a admin key como invoice key principal
+		Description: "Chave principal da wallet",
+		CreatedAt:   time.Now().Format(time.RFC3339),
+	}
+	
+	invoiceKeys = append(invoiceKeys, mainKey)
+	
+	return invoiceKeys, nil
+}
+
+// CreateInvoiceWithKey cria um invoice usando uma invoice key específica
+func (s *LNBitsService) CreateInvoiceWithKey(invoiceKey string, amount int64, memo string) (*models.InvoiceResponse, error) {
+	// Se a invoice key for a admin key, usar o método normal
+	if strings.HasPrefix(invoiceKey, "lnbits_") {
+		return s.CreateInvoice(invoiceKey, amount, memo)
+	}
+	
+	// Para outras invoice keys, você pode implementar lógica específica
+	// Por enquanto, vamos usar a admin key base
+	adminKey := strings.Split(invoiceKey, "_")[0]
+	return s.CreateInvoice(adminKey, amount, memo)
 }
 
 

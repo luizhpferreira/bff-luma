@@ -821,6 +821,141 @@ func (h *WalletHandler) CheckPaymentStatus(w http.ResponseWriter, r *http.Reques
 	respondWithSuccess(w, http.StatusOK, "Status do pagamento verificado", response)
 }
 
+// PayInvoice paga um invoice
+func (h *WalletHandler) PayInvoice(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.PaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Erro ao decodificar requisição", err.Error())
+		return
+	}
+
+	// Obtém o email do contexto JWT
+	email := middleware.GetUserEmail(r)
+	if email == "" {
+		respondWithError(w, http.StatusUnauthorized, "Usuário não autenticado", "")
+		return
+	}
+
+	if req.PaymentRequest == "" {
+		respondWithError(w, http.StatusBadRequest, "payment_request é obrigatório", "")
+		return
+	}
+
+	response, err := h.walletService.PayInvoice(email, req.PaymentRequest)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Erro ao pagar invoice", err.Error())
+		return
+	}
+
+	respondWithSuccess(w, http.StatusOK, "Invoice pago com sucesso", response)
+}
+
+// CreateInvoiceKey cria uma nova invoice key para o usuário
+func (h *WalletHandler) CreateInvoiceKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.CreateInvoiceKeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Erro ao decodificar requisição", err.Error())
+		return
+	}
+
+	// Obtém o email do contexto JWT
+	email := middleware.GetUserEmail(r)
+	if email == "" {
+		respondWithError(w, http.StatusUnauthorized, "Usuário não autenticado", "")
+		return
+	}
+
+	if req.Name == "" {
+		respondWithError(w, http.StatusBadRequest, "name é obrigatório", "")
+		return
+	}
+
+	response, err := h.walletService.CreateInvoiceKey(email, req.Name, req.Description)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Erro ao criar invoice key", err.Error())
+		return
+	}
+
+	respondWithSuccess(w, http.StatusCreated, "Invoice key criada com sucesso", response)
+}
+
+// ListInvoiceKeys lista todas as invoice keys do usuário
+func (h *WalletHandler) ListInvoiceKeys(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Obtém o email do contexto JWT
+	email := middleware.GetUserEmail(r)
+	if email == "" {
+		respondWithError(w, http.StatusUnauthorized, "Usuário não autenticado", "")
+		return
+	}
+
+	response, err := h.walletService.ListInvoiceKeys(email)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Erro ao listar invoice keys", err.Error())
+		return
+	}
+
+	respondWithSuccess(w, http.StatusOK, "Invoice keys listadas com sucesso", response)
+}
+
+// CreateInvoiceWithKey cria um invoice usando uma invoice key específica
+func (h *WalletHandler) CreateInvoiceWithKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		InvoiceKeyID string `json:"invoice_key_id" validate:"required"`
+		Amount       int64  `json:"amount" validate:"required,min=1"`
+		Memo         string `json:"memo,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Erro ao decodificar requisição", err.Error())
+		return
+	}
+
+	// Obtém o email do contexto JWT
+	email := middleware.GetUserEmail(r)
+	if email == "" {
+		respondWithError(w, http.StatusUnauthorized, "Usuário não autenticado", "")
+		return
+	}
+
+	if req.InvoiceKeyID == "" {
+		respondWithError(w, http.StatusBadRequest, "invoice_key_id é obrigatório", "")
+		return
+	}
+
+	if req.Amount <= 0 {
+		respondWithError(w, http.StatusBadRequest, "amount deve ser maior que zero", "")
+		return
+	}
+
+	response, err := h.walletService.CreateInvoiceWithKey(email, req.InvoiceKeyID, req.Amount, req.Memo)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Erro ao criar invoice", err.Error())
+		return
+	}
+
+	respondWithSuccess(w, http.StatusCreated, "Invoice criado com sucesso", response)
+}
+
 // GetWalletInfo retorna informações da carteira
 func (h *WalletHandler) GetWalletInfo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

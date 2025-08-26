@@ -76,6 +76,49 @@ type PaymentStatus struct {
 	PaidAt      *int64 `json:"paid_at,omitempty"`
 }
 
+// PaymentRequest representa a requisição para pagar um invoice
+type PaymentRequest struct {
+	PaymentRequest string `json:"payment_request" validate:"required"`
+}
+
+// PaymentResponse representa a resposta do pagamento de um invoice
+type PaymentResponse struct {
+	PaymentHash string `json:"payment_hash"`
+	Paid        bool   `json:"paid"`
+	Amount      int64  `json:"amount"`
+	Memo        string `json:"memo,omitempty"`
+}
+
+// InvoiceKey representa uma chave de invoice individual
+type InvoiceKey struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	InvoiceKey  string `json:"-"` // Nunca exposto para o frontend
+	Description string `json:"description"`
+	CreatedAt   string `json:"created_at"`
+}
+
+// CreateInvoiceKeyRequest representa a requisição para criar uma nova invoice key
+type CreateInvoiceKeyRequest struct {
+	Name        string `json:"name" validate:"required"`
+	Description string `json:"description,omitempty"`
+}
+
+// CreateInvoiceKeyResponse representa a resposta da criação de uma nova invoice key
+type CreateInvoiceKeyResponse struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	CreatedAt   string `json:"created_at"`
+	Message     string `json:"message"`
+}
+
+// ListInvoiceKeysResponse representa a resposta da listagem de invoice keys
+type ListInvoiceKeysResponse struct {
+	InvoiceKeys []InvoiceKey `json:"invoice_keys"`
+	Total       int          `json:"total"`
+}
+
 // ForgotPasswordRequest representa a requisição de recuperação de senha
 type ForgotPasswordRequest struct {
 	Email string `json:"email" validate:"required,email"`

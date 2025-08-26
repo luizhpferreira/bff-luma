@@ -97,6 +97,10 @@ func main() {
 			r.Get("/wallets", walletHandler.GetWalletInfo)
 			r.Post("/invoices", walletHandler.CreateInvoice)
 			r.Get("/payments/status", walletHandler.CheckPaymentStatus)
+			r.Post("/payments", walletHandler.PayInvoice)
+			r.Post("/invoice-keys", walletHandler.CreateInvoiceKey)
+			r.Get("/invoice-keys", walletHandler.ListInvoiceKeys)
+			r.Post("/invoices/with-key", walletHandler.CreateInvoiceWithKey)
 
 		})
 	})

@@ -190,6 +190,122 @@ func (s *WalletService) CheckPaymentStatus(email, paymentHash string) (*models.P
 	return paymentStatus, nil
 }
 
+// PayInvoice paga um invoice usando a carteira do usuário
+func (s *WalletService) PayInvoice(email, paymentRequest string) (*models.PaymentResponse, error) {
+	// Busca a carteira do usuário
+	wallet, err := s.db.GetWalletByEmail(email)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar carteira: %w", err)
+	}
+	if wallet == nil {
+		return nil, fmt.Errorf("carteira não encontrada")
+	}
+
+	// Paga o invoice usando o LNBits
+	payment, err := s.lnbits.PayInvoice(wallet.AdminKey, paymentRequest)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao pagar invoice: %w", err)
+	}
+
+	log.Printf("Invoice pago com sucesso para email %s: %s", email, payment.PaymentHash)
+	return payment, nil
+}
+
+// CreateInvoiceKey cria uma nova invoice key para o usuário
+func (s *WalletService) CreateInvoiceKey(email, name, description string) (*models.CreateInvoiceKeyResponse, error) {
+	// Busca a carteira do usuário
+	wallet, err := s.db.GetWalletByEmail(email)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar carteira: %w", err)
+	}
+	if wallet == nil {
+		return nil, fmt.Errorf("carteira não encontrada")
+	}
+
+	// Cria a nova invoice key no LNBits
+	invoiceKey, err := s.lnbits.CreateInvoiceKey(wallet.AdminKey, name, description)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar invoice key: %w", err)
+	}
+
+	response := &models.CreateInvoiceKeyResponse{
+		ID:          invoiceKey.ID,
+		Name:        invoiceKey.Name,
+		Description: invoiceKey.Description,
+		CreatedAt:   invoiceKey.CreatedAt,
+		Message:     "Invoice key criada com sucesso",
+	}
+
+	log.Printf("Nova invoice key criada para email %s: %s (%s)", email, invoiceKey.ID, invoiceKey.Name)
+	return response, nil
+}
+
+// ListInvoiceKeys lista todas as invoice keys do usuário
+func (s *WalletService) ListInvoiceKeys(email string) (*models.ListInvoiceKeysResponse, error) {
+	// Busca a carteira do usuário
+	wallet, err := s.db.GetWalletByEmail(email)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar carteira: %w", err)
+	}
+	if wallet == nil {
+		return nil, fmt.Errorf("carteira não encontrada")
+	}
+
+	// Lista as invoice keys no LNBits
+	invoiceKeys, err := s.lnbits.ListInvoiceKeys(wallet.AdminKey)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao listar invoice keys: %w", err)
+	}
+
+	response := &models.ListInvoiceKeysResponse{
+		InvoiceKeys: invoiceKeys,
+		Total:       len(invoiceKeys),
+	}
+
+	log.Printf("Listadas %d invoice keys para email %s", len(invoiceKeys), email)
+	return response, nil
+}
+
+// CreateInvoiceWithKey cria um invoice usando uma invoice key específica
+func (s *WalletService) CreateInvoiceWithKey(email, invoiceKeyID string, amount int64, memo string) (*models.InvoiceResponse, error) {
+	// Busca a carteira do usuário
+	wallet, err := s.db.GetWalletByEmail(email)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar carteira: %w", err)
+	}
+	if wallet == nil {
+		return nil, fmt.Errorf("carteira não encontrada")
+	}
+
+	// Lista as invoice keys para encontrar a específica
+	invoiceKeys, err := s.lnbits.ListInvoiceKeys(wallet.AdminKey)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao listar invoice keys: %w", err)
+	}
+
+	// Encontra a invoice key específica
+	var targetInvoiceKey string
+	for _, key := range invoiceKeys {
+		if key.ID == invoiceKeyID {
+			targetInvoiceKey = key.InvoiceKey
+			break
+		}
+	}
+
+	if targetInvoiceKey == "" {
+		return nil, fmt.Errorf("invoice key não encontrada")
+	}
+
+	// Cria o invoice usando a invoice key específica
+	invoice, err := s.lnbits.CreateInvoiceWithKey(targetInvoiceKey, amount, memo)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar invoice: %w", err)
+	}
+
+	log.Printf("Invoice criado com sucesso usando invoice key %s para email %s: %s", invoiceKeyID, email, invoice.PaymentHash)
+	return invoice, nil
+}
+
 // Login autentica um usuário
 func (s *WalletService) Login(req *models.LoginRequest) (*models.LoginResponse, error) {
 	// Remove formatação do CPF se houver
