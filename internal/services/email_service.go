@@ -70,7 +70,7 @@ func (s *EmailService) SendWelcomeEmail(email, walletID string) error {
 		return nil
 	}
 
-	subject := "Bem-vindo ao BFF Luma!"
+	subject := "Bem-vindo a Luma!"
 	body := s.buildWelcomeEmailBody(email, walletID)
 	
 	return s.sendEmail(email, subject, body)
@@ -291,7 +291,7 @@ func (s *EmailService) buildWelcomeEmailBody(email, walletID string) string {
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Bem-vindo ao BFF Luma!</title>
+    <title>Bem-vindo a Luma!</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -304,7 +304,7 @@ func (s *EmailService) buildWelcomeEmailBody(email, walletID string) string {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎉 Bem-vindo ao BFF Luma!</h1>
+            <h1>🎉 Bem-vindo a Luma!</h1>
         </div>
         <div class="content">
             <p>Olá!</p>
