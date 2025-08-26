@@ -441,6 +441,29 @@ func (s *WalletService) ResetPassword(req *models.ResetPasswordRequest) (*models
 	}, nil
 }
 
+// ValidateResetToken valida se um token de reset é válido
+func (s *WalletService) ValidateResetToken(token string) (bool, error) {
+	// Busca token válido
+	email, expiresAt, used, err := s.db.GetResetToken(token)
+	if err != nil {
+		return false, fmt.Errorf("erro ao validar token: %w", err)
+	}
+
+	if email == "" {
+		return false, nil // Token não existe
+	}
+
+	if used {
+		return false, nil // Token já foi usado
+	}
+
+	if time.Now().After(expiresAt) {
+		return false, nil // Token expirado
+	}
+
+	return true, nil // Token válido
+}
+
 // ValidatePasswordStrength valida se a senha é forte
 func (s *WalletService) ValidatePasswordStrength(password string) error {
 	return s.password.ValidatePasswordStrength(password)

@@ -283,6 +283,190 @@ func (h *WalletHandler) ConfirmEmailPage(w http.ResponseWriter, r *http.Request)
 	w.Write([]byte(html))
 }
 
+// ResetPasswordPage exibe uma página HTML para reset de senha
+func (h *WalletHandler) ResetPasswordPage(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		http.Error(w, "Token não fornecido", http.StatusBadRequest)
+		return
+	}
+
+	// Página HTML que processa o token e redireciona para o app
+	html := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Redefinir Senha - BFF Luma</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { 
+            max-width: 500px; 
+            background: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .header { 
+            background: #007bff; 
+            color: white; 
+            padding: 20px; 
+            border-radius: 10px; 
+            margin-bottom: 30px;
+        }
+        .content { 
+            padding: 20px 0; 
+        }
+        .button { 
+            display: inline-block; 
+            padding: 15px 30px; 
+            background: #007bff; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: bold;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        .button:hover { 
+            background: #0056b3; 
+        }
+        .success { 
+            background: #28a745; 
+        }
+        .success:hover { 
+            background: #1e7e34; 
+        }
+        .error { 
+            background: #dc3545; 
+        }
+        .error:hover { 
+            background: #c82333; 
+        }
+        .loading { 
+            display: none; 
+        }
+        .result { 
+            display: none; 
+            margin-top: 20px; 
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0%% { transform: rotate(0deg); }
+            100%% { transform: rotate(360deg); }
+        }
+        .app-link {
+            background: #6c5ce7;
+            margin-top: 20px;
+        }
+        .app-link:hover {
+            background: #5a4fcf;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Redefinir Senha</h1>
+            <p>BFF Luma</p>
+        </div>
+        
+        <div class="content">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Validando token...</p>
+            </div>
+            
+            <div id="success" class="result">
+                <h2>✅ Token Válido!</h2>
+                <p>Seu token de recuperação é válido!</p>
+                <p>Clique no botão abaixo para abrir o aplicativo e redefinir sua senha.</p>
+                <a href="bffluma://reset-password?token=%s" class="button success">📱 Abrir App</a>
+                <a href="https://play.google.com/store/apps/details?id=com.anonymous.BFFLumaMobile" class="button app-link">📥 Baixar App</a>
+            </div>
+            
+            <div id="error" class="result">
+                <h2>❌ Token Inválido</h2>
+                <p id="error-message">O token de recuperação é inválido ou expirou.</p>
+                <button onclick="retryValidation()" class="button">🔄 Tentar Novamente</button>
+                <a href="mailto:support@bffluma.com" class="button error">📧 Suporte</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = '%s';
+        
+        async function validateToken() {
+            document.getElementById('loading').style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/v1/validate-reset-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token: token })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('success').style.display = 'block';
+                    
+                    // Tenta abrir o app automaticamente após 2 segundos
+                    setTimeout(() => {
+                        window.location.href = 'bffluma://reset-password?token=' + token;
+                    }, 2000);
+                } else {
+                    throw new Error(data.message || 'Token inválido');
+                }
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error-message').textContent = error.message;
+            }
+        }
+        
+        function retryValidation() {
+            document.getElementById('success').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            validateToken();
+        }
+        
+        // Inicia a validação automaticamente
+        window.onload = validateToken;
+    </script>
+</body>
+</html>`, token, token)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(html))
+}
+
 // ConfirmEmail confirma o email do usuário
 func (h *WalletHandler) ConfirmEmail(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -441,6 +625,44 @@ func (h *WalletHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithSuccess(w, http.StatusOK, "Solicitação processada", response)
+}
+
+// ValidateResetToken valida um token de reset de senha
+func (h *WalletHandler) ValidateResetToken(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.ValidateResetTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Erro ao decodificar requisição", err.Error())
+		return
+	}
+
+	if req.Token == "" {
+		respondWithError(w, http.StatusBadRequest, "token é obrigatório", "")
+		return
+	}
+
+	// Valida o token
+	valid, err := h.walletService.ValidateResetToken(req.Token)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Erro ao validar token", err.Error())
+		return
+	}
+
+	if !valid {
+		respondWithError(w, http.StatusBadRequest, "Token inválido ou expirado", "")
+		return
+	}
+
+	response := &models.ValidateResetTokenResponse{
+		Valid:   true,
+		Message: "Token válido",
+	}
+
+	respondWithSuccess(w, http.StatusOK, "Token válido", response)
 }
 
 // ResetPassword redefine a senha usando um token

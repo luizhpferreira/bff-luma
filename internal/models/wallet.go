@@ -108,3 +108,14 @@ type ConfirmEmailResponse struct {
 	Message string `json:"message"`
 	Email   string `json:"email"`
 }
+
+// ValidateResetTokenRequest representa a requisição de validação de token de reset
+type ValidateResetTokenRequest struct {
+	Token string `json:"token" validate:"required"`
+}
+
+// ValidateResetTokenResponse representa a resposta de validação de token de reset
+type ValidateResetTokenResponse struct {
+	Valid   bool   `json:"valid"`
+	Message string `json:"message"`
+}

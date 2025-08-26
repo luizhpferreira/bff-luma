@@ -55,7 +55,7 @@ func (s *EmailService) SendPasswordResetEmail(email, token string) error {
 		return nil
 	}
 
-	subject := "Recuperação de Senha - BFF Luma"
+	subject := "Recuperação de Senha - Luma"
 	body := s.buildPasswordResetEmailBody(email, token)
 	
 	return s.sendEmail(email, subject, body)
@@ -256,7 +256,7 @@ func (s *EmailService) buildPasswordResetEmailBody(email, token string) string {
         </div>
         <div class="content">
             <p>Olá!</p>
-            <p>Recebemos uma solicitação para redefinir a senha da sua conta no <strong>Luma Bank</strong>.</p>
+            <p>Recebemos uma solicitação para redefinir a senha da sua conta na <strong>Luma</strong>.</p>
             <p>Se você não fez essa solicitação, pode ignorar este email.</p>
             
             <div style="text-align: center; margin: 30px 0;">

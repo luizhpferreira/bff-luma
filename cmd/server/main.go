@@ -69,6 +69,7 @@ func main() {
 	// Rotas
 	r.Get("/health", walletHandler.HealthCheck)
 	r.Get("/confirm-email", walletHandler.ConfirmEmailPage)
+	r.Get("/reset-password", walletHandler.ResetPasswordPage)
 
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {
@@ -81,6 +82,7 @@ func main() {
 		r.Post("/refresh", walletHandler.RefreshToken)
 		r.Post("/forgot-password", walletHandler.ForgotPassword)
 		r.Post("/reset-password", walletHandler.ResetPassword)
+		r.Post("/validate-reset-token", walletHandler.ValidateResetToken)
 		r.Post("/confirm-email", walletHandler.ConfirmEmail)
 		
 		// Rotas de administração (limpeza e rate limit stats)
