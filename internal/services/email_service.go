@@ -62,16 +62,15 @@ func (s *EmailService) SendPasswordResetEmail(email, token string) error {
 }
 
 // SendWelcomeEmail envia email de boas-vindas
-func (s *EmailService) SendWelcomeEmail(email, walletID string) error {
+func (s *EmailService) SendWelcomeEmail(email string) error {
 	if !s.enabled {
 		// Modo simulado
 		log.Printf("📧 Email de boas-vindas enviado para: %s", email)
-		log.Printf("💳 Wallet ID: %s", walletID)
 		return nil
 	}
 
 	subject := "Bem-vindo a Luma!"
-	body := s.buildWelcomeEmailBody(email, walletID)
+	body := s.buildWelcomeEmailBody(email)
 	
 	return s.sendEmail(email, subject, body)
 }
@@ -285,7 +284,7 @@ func (s *EmailService) buildPasswordResetEmailBody(email, token string) string {
 }
 
 // buildWelcomeEmailBody constrói o corpo do email de boas-vindas
-func (s *EmailService) buildWelcomeEmailBody(email, walletID string) string {
+func (s *EmailService) buildWelcomeEmailBody(email string) string {
 	return fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
@@ -308,7 +307,7 @@ func (s *EmailService) buildWelcomeEmailBody(email, walletID string) string {
         </div>
         <div class="content">
             <p>Olá!</p>
-            <p>🎉 <strong>Parabéns!</strong> Sua conta foi confirmada com sucesso no <strong>BFF Luma</strong>!</p>
+            <p>🎉 <strong>Parabéns!</strong> Sua conta foi confirmada com sucesso na <strong>Luma</strong>!</p>
             <p>✅ Seu email foi verificado e sua conta está ativa.</p>
             <p>Agora você pode:</p>
             <ul>
@@ -321,7 +320,6 @@ func (s *EmailService) buildWelcomeEmailBody(email, walletID string) string {
             <div class="wallet-info">
                 <h3>📋 Informações da sua Carteira:</h3>
                 <p><strong>Email:</strong> %s</p>
-                <p><strong>Wallet ID:</strong> <code>%s</code></p>
             </div>
             
             <p><strong>🔐 Dica de Segurança:</strong></p>
@@ -339,7 +337,7 @@ func (s *EmailService) buildWelcomeEmailBody(email, walletID string) string {
         </div>
     </div>
 </body>
-</html>`, email, walletID)
+</html>`, email)
 }
 
 // buildEmailConfirmationBody constrói o corpo do email de confirmação

@@ -421,7 +421,7 @@ func (s *WalletService) ConfirmEmail(token string) error {
 			log.Printf("❌ Email service é nil!")
 			return
 		}
-		if err := s.email.SendWelcomeEmail(wallet.Email, wallet.WalletID); err != nil {
+		if err := s.email.SendWelcomeEmail(wallet.Email); err != nil {
 			log.Printf("⚠️ Erro ao enviar email de boas-vindas para %s: %v", wallet.Email, err)
 		} else {
 			log.Printf("📧 Email de boas-vindas enviado com sucesso para %s", wallet.Email)
