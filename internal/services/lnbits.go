@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -58,7 +59,7 @@ type LNBitsPaymentResponse struct {
 	Paid    bool   `json:"paid"`
 	Amount  int64  `json:"amount"`
 	Memo    string `json:"memo"`
-	Time    int64  `json:"time"`
+	Time    string `json:"time"`
 	Bolt11  string `json:"bolt11"`
 	Preimage string `json:"preimage"`
 }
@@ -345,8 +346,11 @@ func (s *LNBitsService) CheckPayment(invoiceKey, paymentHash string) (*models.Pa
 		Memo:        lnbitsResp.Memo,
 	}
 
-	if lnbitsResp.Paid && lnbitsResp.Time > 0 {
-		paymentStatus.PaidAt = &lnbitsResp.Time
+	if lnbitsResp.Paid && lnbitsResp.Time != "" {
+		// Converter string para int64 se necessário
+		if timeInt, err := strconv.ParseInt(lnbitsResp.Time, 10, 64); err == nil {
+			paymentStatus.PaidAt = &timeInt
+		}
 	}
 
 	return paymentStatus, nil
@@ -357,8 +361,8 @@ func (s *LNBitsService) PayInvoice(adminKey, paymentRequest string) (*models.Pay
 	url := fmt.Sprintf("%s/api/v1/payments", s.baseURL)
 	
 	payload := map[string]interface{}{
-		"out":             true,
-		"payment_request": paymentRequest,
+		"out":    true,
+		"bolt11": paymentRequest,
 	}
 
 	jsonData, err := json.Marshal(payload)
@@ -380,13 +384,14 @@ func (s *LNBitsService) PayInvoice(adminKey, paymentRequest string) (*models.Pay
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("erro na resposta do LNBits: %d - %s", resp.StatusCode, string(body))
 	}
 
 	var lnbitsResp LNBitsPaymentResponse
-	if err := json.NewDecoder(resp.Body).Decode(&lnbitsResp); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&lnbitsResp); err != nil {
 		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
 	}
 
