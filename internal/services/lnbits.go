@@ -286,13 +286,17 @@ func (s *LNBitsService) CreateInvoice(invoiceKey string, amount int64, memo stri
 	}
 	defer resp.Body.Close()
 
+	// Debug: log da resposta
+	body, _ := io.ReadAll(resp.Body)
+	fmt.Printf("DEBUG: Status Code: %d\n", resp.StatusCode)
+	fmt.Printf("DEBUG: Response Body: %s\n", string(body))
+
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("erro na resposta do LNBits: %d - %s", resp.StatusCode, string(body))
 	}
 
 	var lnbitsResp LNBitsInvoiceResponse
-	if err := json.NewDecoder(resp.Body).Decode(&lnbitsResp); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&lnbitsResp); err != nil {
 		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
 	}
 
