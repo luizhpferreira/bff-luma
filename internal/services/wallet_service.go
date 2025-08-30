@@ -97,12 +97,17 @@ func (s *WalletService) CreateWallet(username, email, password string) (*models.
 		return nil, fmt.Errorf("erro ao gerar hash da senha: %w", err)
 	}
 
+	// Gera um ID temporário único para evitar conflitos na constraint
+	tempWalletID := fmt.Sprintf("temp_%s_%d", username, time.Now().Unix())
+
 	// Cria objeto wallet apenas com dados básicos (sem LNBits ainda)
 	wallet := &models.Wallet{
 		CPF:      username,        // CPF do usuário
 		Email:    email,           // Email do usuário
 		Password: hashedPassword,  // Senha hasheada
-		// WalletID, AdminKey, InvoiceKey serão preenchidos após confirmação
+		WalletID: tempWalletID,    // ID temporário único
+		AdminKey: "",              // Será preenchido após confirmação
+		InvoiceKey: "",            // Será preenchido após confirmação
 	}
 
 	// Salva no banco de dados (apenas dados básicos)

@@ -63,7 +63,7 @@ type InvoiceResponse struct {
 	PaymentHash    string `json:"payment_hash"`
 	Amount         int64  `json:"amount"`
 	Memo           string `json:"memo,omitempty"`
-	ExpiresAt      int64  `json:"expires_at"`
+	ExpiresAt      string `json:"expires_at"`
 }
 
 // PaymentStatus representa o status de um pagamento

@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"bff-luma/internal/models"
+	_ "github.com/lib/pq"
 )
 
 // LNBitsService representa o serviço de integração com LNBits
@@ -18,6 +20,7 @@ type LNBitsService struct {
 	apiToken       string
 	webhookSecret  string
 	httpClient     *http.Client
+	lnbitsDB       *sql.DB
 }
 
 // LNBitsUserResponse representa a resposta da criação de usuário no LNBits
@@ -42,12 +45,12 @@ type LNBitsInvoiceRequest struct {
 
 // LNBitsInvoiceResponse representa a resposta da criação de invoice no LNBits
 type LNBitsInvoiceResponse struct {
-	PaymentRequest string `json:"payment_request"`
+	PaymentRequest string `json:"bolt11"`
 	PaymentHash    string `json:"payment_hash"`
 	Amount         int64  `json:"amount"`
 	Memo           string `json:"memo"`
-	Time           int64  `json:"time"`
-	ExpiresAt      int64  `json:"expires_at"`
+	Time           string `json:"time"`
+	ExpiresAt      string `json:"expiry"`
 }
 
 // LNBitsPaymentResponse representa a resposta de verificação de pagamento
@@ -76,8 +79,25 @@ type LNBitsChannelResponse struct {
 	Status    string `json:"status"`
 }
 
+// LNBitsWalletResponse representa a resposta da API de wallet do LNBits
+type LNBitsWalletResponse struct {
+	ID        string `json:"id"`
+	AdminKey  string `json:"adminkey"`
+	InvoiceKey string `json:"invoicekey"`
+	Balance   int64  `json:"balance"`
+	Pending   int64  `json:"pending"`
+	MaxPending int64 `json:"max_pending"`
+}
+
 // NewLNBitsService cria um novo serviço LNBits
 func NewLNBitsService(baseURL, apiToken, webhookSecret string) *LNBitsService {
+	// Conectar ao banco do LNBits
+	lnbitsDB, err := sql.Open("postgres", "postgres://lnbits:Qualquer2@localhost:55432/lnbits?sslmode=disable")
+	if err != nil {
+		fmt.Printf("⚠️  Erro ao conectar ao banco do LNBits: %v\n", err)
+		lnbitsDB = nil
+	}
+
 	return &LNBitsService{
 		baseURL:       baseURL,
 		apiToken:      apiToken,
@@ -85,11 +105,65 @@ func NewLNBitsService(baseURL, apiToken, webhookSecret string) *LNBitsService {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		lnbitsDB: lnbitsDB,
 	}
 }
 
-// CreateWallet cria um novo usuário no LNBits
+// getWalletFromDB obtém as informações da wallet diretamente do banco do LNBits
+func (s *LNBitsService) getWalletFromDB(userID string) (*LNBitsWalletResponse, error) {
+	if s.lnbitsDB == nil {
+		return nil, fmt.Errorf("conexão com banco do LNBits não disponível")
+	}
+
+	// Como o LNBits cria wallets com user = 'lnbits' para todos os usuários,
+	// vamos obter a wallet mais recente
+	query := `
+		SELECT id, adminkey, inkey 
+		FROM wallets 
+		WHERE user = 'lnbits' 
+		ORDER BY created_at DESC 
+		LIMIT 1
+	`
+	
+	var wallet LNBitsWalletResponse
+	err := s.lnbitsDB.QueryRow(query).Scan(&wallet.ID, &wallet.AdminKey, &wallet.InvoiceKey)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao consultar wallet no banco: %w", err)
+	}
+
+	fmt.Printf("✅ Debug: Wallet encontrada no banco - ID: %s, AdminKey: %s, InvoiceKey: %s\n", 
+		wallet.ID, wallet.AdminKey, wallet.InvoiceKey)
+
+	return &wallet, nil
+}
+
+// CreateWallet cria um novo usuário e wallet no LNBits
 func (s *LNBitsService) CreateWallet(username, email, password string) (*models.Wallet, error) {
+	// Primeiro, cria o usuário no LNBits
+	user, err := s.createUser(username, email, password)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar usuário no LNBits: %w", err)
+	}
+
+	// O LNBits automaticamente cria uma wallet para o usuário
+	// Vamos obter as informações da wallet diretamente do banco do LNBits
+	wallet, err := s.getWalletFromDB(user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao obter wallet do banco do LNBits: %w", err)
+	}
+
+	// Retorna os dados da wallet com as chaves reais
+	return &models.Wallet{
+		WalletID:   wallet.ID,
+		AdminKey:   wallet.AdminKey,
+		InvoiceKey: wallet.InvoiceKey,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}, nil
+}
+
+// createUser cria um novo usuário no LNBits
+func (s *LNBitsService) createUser(username, email, password string) (*LNBitsUserResponse, error) {
 	url := fmt.Sprintf("%s/users/api/v1/user", s.baseURL)
 	
 	payload := map[string]interface{}{
@@ -129,18 +203,59 @@ func (s *LNBitsService) CreateWallet(username, email, password string) (*models.
 		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
 	}
 
-	// Com a criação do usuário, precisamos criar uma wallet para ele
-	// O ID do usuário será usado como wallet_id
-	wallet := &models.Wallet{
-		WalletID:   lnbitsResp.ID,
-		AdminKey:   lnbitsResp.ID, // Temporário - precisaremos obter a wallet real
-		InvoiceKey: lnbitsResp.ID, // Temporário - precisaremos obter a wallet real
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+	return &lnbitsResp, nil
+}
+
+// getUserWallet obtém as informações da wallet do usuário usando a API de administração
+func (s *LNBitsService) getUserWallet(userID string) (*LNBitsWalletResponse, error) {
+	// Usar o endpoint correto para obter as wallets do usuário
+	url := fmt.Sprintf("%s/users/api/v1/user/%s/wallet", s.baseURL, userID)
+	
+	fmt.Printf("🔍 Debug: Chamando API do LNBits: %s\n", url)
+	fmt.Printf("🔑 Debug: Token usado: %s...\n", s.apiToken[:20])
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar requisição: %w", err)
 	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.apiToken))
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao fazer requisição: %w", err)
+	}
+	defer resp.Body.Close()
+
+	fmt.Printf("📊 Debug: Status da resposta: %d\n", resp.StatusCode)
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("❌ Debug: Erro na resposta: %s\n", string(body))
+		return nil, fmt.Errorf("erro na resposta do LNBits: %d - %s", resp.StatusCode, string(body))
+	}
+
+	// A resposta é um array de wallets, vamos pegar a primeira
+	var wallets []LNBitsWalletResponse
+	if err := json.NewDecoder(resp.Body).Decode(&wallets); err != nil {
+		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
+	}
+
+	fmt.Printf("📋 Debug: Número de wallets encontradas: %d\n", len(wallets))
+
+	if len(wallets) == 0 {
+		return nil, fmt.Errorf("nenhuma wallet encontrada para o usuário")
+	}
+
+	// Retorna a primeira wallet (wallet padrão criada automaticamente)
+	wallet := &wallets[0]
+	fmt.Printf("✅ Debug: Wallet encontrada - ID: %s, AdminKey: %s, InvoiceKey: %s\n", 
+		wallet.ID, wallet.AdminKey, wallet.InvoiceKey)
 
 	return wallet, nil
 }
+
+
 
 // CreateInvoice cria um invoice na carteira especificada
 func (s *LNBitsService) CreateInvoice(invoiceKey string, amount int64, memo string) (*models.InvoiceResponse, error) {
@@ -171,7 +286,7 @@ func (s *LNBitsService) CreateInvoice(invoiceKey string, amount int64, memo stri
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("erro na resposta do LNBits: %d - %s", resp.StatusCode, string(body))
 	}
