@@ -679,4 +679,31 @@ func generateNickname(localPart string) string {
 	return cleaned
 }
 
+// GetWalletBalance retorna o saldo da carteira do usuário
+func (s *WalletService) GetWalletBalance(email string) (*models.WalletBalanceResponse, error) {
+	// Busca a carteira do usuário
+	wallet, err := s.db.GetWalletByEmail(email)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar carteira: %w", err)
+	}
+
+	if wallet == nil {
+		return nil, fmt.Errorf("carteira não encontrada para o email %s", email)
+	}
+
+	// Obtém o saldo da wallet no LNBits
+	walletInfo, err := s.lnbits.GetWalletBalance(wallet.AdminKey)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao obter saldo da wallet: %w", err)
+	}
+
+	return &models.WalletBalanceResponse{
+		WalletID:   wallet.WalletID,
+		Email:      wallet.Email,
+		Balance:    walletInfo.Balance,
+		Pending:    walletInfo.Pending,
+		MaxPending: walletInfo.MaxPending,
+	}, nil
+}
+
 

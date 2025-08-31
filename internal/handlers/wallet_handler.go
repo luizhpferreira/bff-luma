@@ -979,6 +979,29 @@ func (h *WalletHandler) GetWalletInfo(w http.ResponseWriter, r *http.Request) {
 	respondWithSuccess(w, http.StatusOK, "Informações da carteira", response)
 }
 
+// GetWalletBalance retorna o saldo da carteira
+func (h *WalletHandler) GetWalletBalance(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Obtém o email do contexto JWT
+	email := middleware.GetUserEmail(r)
+	if email == "" {
+		respondWithError(w, http.StatusUnauthorized, "Usuário não autenticado", "")
+		return
+	}
+
+	response, err := h.walletService.GetWalletBalance(email)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Erro ao buscar saldo da carteira", err.Error())
+		return
+	}
+
+	respondWithSuccess(w, http.StatusOK, "Saldo da carteira obtido com sucesso", response)
+}
+
 // HealthCheck verifica se a API está funcionando
 func (h *WalletHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

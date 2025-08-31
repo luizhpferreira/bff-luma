@@ -85,9 +85,9 @@ type LNBitsWalletResponse struct {
 	ID        string `json:"id"`
 	AdminKey  string `json:"adminkey"`
 	InvoiceKey string `json:"invoicekey"`
-	Balance   int64  `json:"balance"`
-	Pending   int64  `json:"pending"`
-	MaxPending int64 `json:"max_pending"`
+	Balance   int64  `json:"balance"`   // Saldo em milisatoshis (msats)
+	Pending   int64  `json:"pending"`   // Pendências em milisatoshis (msats)
+	MaxPending int64 `json:"max_pending"` // Máximo pendente em milisatoshis (msats)
 }
 
 // NewLNBitsService cria um novo serviço LNBits
@@ -478,4 +478,34 @@ func (s *LNBitsService) CreateChannel(adminKey, nodeURI string, amount int64, pr
 	}
 
 	return &lnbitsResp, nil
+}
+
+// GetWalletBalance obtém o saldo da wallet usando a AdminKey
+func (s *LNBitsService) GetWalletBalance(adminKey string) (*LNBitsWalletResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/wallet", s.baseURL)
+	
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar requisição: %w", err)
+	}
+
+	req.Header.Set("X-Api-Key", adminKey)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao fazer requisição: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("erro na resposta do LNBits: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var walletResp LNBitsWalletResponse
+	if err := json.NewDecoder(resp.Body).Decode(&walletResp); err != nil {
+		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
+	}
+
+	return &walletResp, nil
 }

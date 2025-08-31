@@ -162,3 +162,12 @@ type ValidateResetTokenResponse struct {
 	Valid   bool   `json:"valid"`
 	Message string `json:"message"`
 }
+
+// WalletBalanceResponse representa a resposta com o saldo da wallet
+type WalletBalanceResponse struct {
+	WalletID string `json:"wallet_id"`
+	Email    string `json:"email"`
+	Balance  int64  `json:"balance"`   // Saldo em milisatoshis (msats)
+	Pending  int64  `json:"pending"`   // Pendências em milisatoshis (msats)
+	MaxPending int64 `json:"max_pending"` // Máximo pendente em milisatoshis (msats)
+}

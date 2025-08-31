@@ -95,6 +95,7 @@ func main() {
 			r.Use(authmiddleware.AuthMiddleware(jwtService))
 			
 			r.Get("/wallets", walletHandler.GetWalletInfo)
+			r.Get("/wallets/balance", walletHandler.GetWalletBalance)
 			r.Post("/invoices", walletHandler.CreateInvoice)
 			r.Get("/payments/status", walletHandler.CheckPaymentStatus)
 			r.Post("/payments", walletHandler.PayInvoice)
