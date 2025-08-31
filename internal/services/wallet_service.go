@@ -206,9 +206,25 @@ func (s *WalletService) PayInvoice(email, paymentRequest string) (*models.Paymen
 		return nil, fmt.Errorf("carteira não encontrada")
 	}
 
+	// Verifica o saldo da carteira antes de tentar pagar
+	balance, err := s.lnbits.GetWalletBalance(wallet.AdminKey)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao verificar saldo da carteira: %w", err)
+	}
+
+	// Extrai o valor do payment request (aproximado)
+	// Em uma implementação mais robusta, você pode decodificar o BOLT11 para obter o valor exato
+	if balance.Balance <= 0 {
+		return nil, fmt.Errorf("saldo insuficiente na carteira. Saldo atual: %d msats", balance.Balance)
+	}
+
 	// Paga o invoice usando o LNBits
 	payment, err := s.lnbits.PayInvoice(wallet.AdminKey, paymentRequest)
 	if err != nil {
+		// Verifica se o erro é de saldo insuficiente
+		if strings.Contains(err.Error(), "Insufficient balance") {
+			return nil, fmt.Errorf("saldo insuficiente na carteira para pagar este invoice. Saldo atual: %d msats", balance.Balance)
+		}
 		return nil, fmt.Errorf("erro ao pagar invoice: %w", err)
 	}
 
