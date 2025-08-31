@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -92,8 +93,32 @@ type LNBitsWalletResponse struct {
 
 // NewLNBitsService cria um novo serviço LNBits
 func NewLNBitsService(baseURL, apiToken, webhookSecret string) *LNBitsService {
-	// Conectar ao banco do LNBits
-	lnbitsDB, err := sql.Open("postgres", "postgres://lnbits:Qualquer2@localhost:55432/lnbits?sslmode=disable")
+	fmt.Printf("🔍 Debug: Iniciando NewLNBitsService com baseURL: %s\n", baseURL)
+	// Conectar ao banco do LNBits usando variáveis de ambiente individuais
+	dbHost := os.Getenv("LNBITS_POSTGRES_HOST")
+	if dbHost == "" {
+		dbHost = "postgres"
+	}
+	dbPort := os.Getenv("LNBITS_POSTGRES_PORT")
+	if dbPort == "" {
+		dbPort = "5432"
+	}
+	dbUser := os.Getenv("LNBITS_POSTGRES_USER")
+	if dbUser == "" {
+		dbUser = "lnbits"
+	}
+	dbPassword := os.Getenv("LNBITS_POSTGRES_PASSWORD")
+	if dbPassword == "" {
+		dbPassword = "Qualquer2"
+	}
+	dbName := os.Getenv("LNBITS_POSTGRES_DB")
+	if dbName == "" {
+		dbName = "lnbits"
+	}
+	
+	databaseURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
+	fmt.Printf("🔍 Debug: Tentando conectar ao LNBits DB com URL: postgres://%s:***@%s:%s/%s?sslmode=disable\n", dbUser, dbHost, dbPort, dbName)
+	lnbitsDB, err := sql.Open("postgres", databaseURL)
 	if err != nil {
 		fmt.Printf("⚠️  Erro ao conectar ao banco do LNBits: %v\n", err)
 		lnbitsDB = nil

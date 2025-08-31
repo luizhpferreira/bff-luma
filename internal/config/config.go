@@ -34,6 +34,13 @@ func LoadConfig() *Config {
 	if err != nil {
 		log.Println("Arquivo .env não encontrado, usando variáveis de ambiente do sistema")
 	}
+	
+	// Debug: verificar se as variáveis LNBITS_POSTGRES estão carregadas
+	log.Printf("🔍 Debug: LNBITS_POSTGRES_HOST=%s", os.Getenv("LNBITS_POSTGRES_HOST"))
+	log.Printf("🔍 Debug: LNBITS_POSTGRES_USER=%s", os.Getenv("LNBITS_POSTGRES_USER"))
+	log.Printf("🔍 Debug: LNBITS_POSTGRES_PASSWORD=%s", os.Getenv("LNBITS_POSTGRES_PASSWORD"))
+	log.Printf("🔍 Debug: LNBITS_POSTGRES_DB=%s", os.Getenv("LNBITS_POSTGRES_DB"))
+	log.Printf("🔍 Debug: LNBITS_POSTGRES_PORT=%s", os.Getenv("LNBITS_POSTGRES_PORT"))
 
 	return &Config{
 		AppPort:           getEnv("APP_PORT", "8080"),
