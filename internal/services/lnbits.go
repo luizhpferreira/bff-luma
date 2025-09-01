@@ -289,7 +289,7 @@ func (s *LNBitsService) CreateInvoice(invoiceKey string, amount int64, memo stri
 	
 	payload := LNBitsInvoiceRequest{
 		Out:    false,
-		Amount: amount,
+		Amount: amount / 1000, // LNBits espera milisats, não sats
 		Memo:   memo,
 	}
 
@@ -314,8 +314,6 @@ func (s *LNBitsService) CreateInvoice(invoiceKey string, amount int64, memo stri
 
 	// Debug: log da resposta
 	body, _ := io.ReadAll(resp.Body)
-	fmt.Printf("DEBUG: Status Code: %d\n", resp.StatusCode)
-	fmt.Printf("DEBUG: Response Body: %s\n", string(body))
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("erro na resposta do LNBits: %d - %s", resp.StatusCode, string(body))
