@@ -44,7 +44,7 @@ func LoadConfig() *Config {
 
 	return &Config{
 		AppPort:           getEnv("APP_PORT", "8080"),
-		JWTSecret:         getEnv("JWT_SECRET", "supersecreto123456789"),
+		JWTSecret:         getEnv("JWT_SECRET", ""),
 		LNBitsBaseURL:     getEnv("LNBITS_BASE_URL", "http://127.0.0.1:5000"),
 		LNBitsAPIToken:    getEnv("LNBITS_API_TOKEN", ""),
 		LNBitsWebhookSecret: getEnv("LNBITS_WEBHOOK_SECRET", ""),

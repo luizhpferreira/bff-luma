@@ -24,6 +24,14 @@ func main() {
 	// Carrega configurações
 	cfg := config.LoadConfig()
 
+	// Valida variáveis de ambiente críticas
+	if cfg.JWTSecret == "" {
+		log.Fatal("❌ JWT_SECRET não configurado nas variáveis de ambiente")
+	}
+	if cfg.LNBitsAPIToken == "" {
+		log.Fatal("❌ LNBITS_API_TOKEN não configurado nas variáveis de ambiente")
+	}
+
 	// Inicializa banco de dados
 	db, err := database.NewDatabase(cfg.DatabasePath)
 	if err != nil {
@@ -32,7 +40,10 @@ func main() {
 	defer db.Close()
 
 	// Inicializa serviços
-	lnbitsService := services.NewLNBitsService(cfg.LNBitsBaseURL, cfg.LNBitsAPIToken, cfg.LNBitsWebhookSecret)
+	lnbitsService, err := services.NewLNBitsService(cfg.LNBitsBaseURL, cfg.LNBitsAPIToken, cfg.LNBitsWebhookSecret)
+	if err != nil {
+		log.Fatalf("Erro ao inicializar serviço LNBits: %v", err)
+	}
 	jwtService := services.NewJWTService(cfg.JWTSecret)
 	emailService := services.NewEmailService(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword, cfg.SMTPFromEmail, cfg.SMTPFromName, cfg.SMTPUseTLS, cfg.AppDomain, cfg.AppProtocol)
 	passwordService := services.NewPasswordService()

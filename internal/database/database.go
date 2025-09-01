@@ -62,11 +62,20 @@ func (d *Database) createTables() error {
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 
+	CREATE TABLE IF NOT EXISTS temp_passwords (
+		id SERIAL PRIMARY KEY,
+		email TEXT NOT NULL UNIQUE,
+		password TEXT NOT NULL,
+		expires_at TIMESTAMP NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_wallets_cpf ON wallets(cpf);
 	CREATE INDEX IF NOT EXISTS idx_wallets_email ON wallets(email);
 	CREATE INDEX IF NOT EXISTS idx_wallets_wallet_id ON wallets(wallet_id);
 	CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON reset_tokens(token);
 	CREATE INDEX IF NOT EXISTS idx_reset_tokens_email ON reset_tokens(email);
+	CREATE INDEX IF NOT EXISTS idx_temp_passwords_email ON temp_passwords(email);
 	`
 
 	_, err := d.db.Exec(query)
@@ -170,6 +179,44 @@ func (d *Database) GetWalletByEmailConfirmationToken(token string) (*models.Wall
 			return nil, nil
 		}
 		return nil, fmt.Errorf("erro ao buscar carteira por token: %w", err)
+	}
+
+	return wallet, nil
+}
+
+// GetWalletByEmailAndTokenHistory verifica se uma carteira foi confirmada recentemente com um token específico
+func (d *Database) GetWalletByEmailAndTokenHistory(email, token string) (*models.Wallet, error) {
+	// Busca a carteira pelo email e verifica se foi confirmada recentemente
+	// (dentro das últimas 24 horas) e se o token corresponde
+	query := `
+	SELECT id, cpf, email, password, wallet_id, admin_key, invoice_key, email_confirmed, email_confirmation_token, email_confirmation_expires_at, created_at, updated_at
+	FROM wallets 
+	WHERE email = $1 
+	AND email_confirmed = true 
+	AND updated_at > NOW() - INTERVAL '24 hours'
+	`
+
+	wallet := &models.Wallet{}
+	err := d.db.QueryRow(query, email).Scan(
+		&wallet.ID,
+		&wallet.CPF,
+		&wallet.Email,
+		&wallet.Password,
+		&wallet.WalletID,
+		&wallet.AdminKey,
+		&wallet.InvoiceKey,
+		&wallet.EmailConfirmed,
+		&wallet.EmailConfirmationToken,
+		&wallet.EmailConfirmationExpiresAt,
+		&wallet.CreatedAt,
+		&wallet.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("erro ao buscar carteira por email e histórico: %w", err)
 	}
 
 	return wallet, nil

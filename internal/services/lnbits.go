@@ -92,28 +92,28 @@ type LNBitsWalletResponse struct {
 }
 
 // NewLNBitsService cria um novo serviço LNBits
-func NewLNBitsService(baseURL, apiToken, webhookSecret string) *LNBitsService {
+func NewLNBitsService(baseURL, apiToken, webhookSecret string) (*LNBitsService, error) {
 	fmt.Printf("🔍 Debug: Iniciando NewLNBitsService com baseURL: %s\n", baseURL)
 	// Conectar ao banco do LNBits usando variáveis de ambiente individuais
 	dbHost := os.Getenv("LNBITS_POSTGRES_HOST")
 	if dbHost == "" {
-		dbHost = "postgres"
+		return nil, fmt.Errorf("LNBITS_POSTGRES_HOST não configurado nas variáveis de ambiente")
 	}
 	dbPort := os.Getenv("LNBITS_POSTGRES_PORT")
 	if dbPort == "" {
-		dbPort = "5432"
+		return nil, fmt.Errorf("LNBITS_POSTGRES_PORT não configurado nas variáveis de ambiente")
 	}
 	dbUser := os.Getenv("LNBITS_POSTGRES_USER")
 	if dbUser == "" {
-		dbUser = "lnbits"
+		return nil, fmt.Errorf("LNBITS_POSTGRES_USER não configurado nas variáveis de ambiente")
 	}
 	dbPassword := os.Getenv("LNBITS_POSTGRES_PASSWORD")
 	if dbPassword == "" {
-		dbPassword = "Qualquer2"
+		return nil, fmt.Errorf("LNBITS_POSTGRES_PASSWORD não configurada nas variáveis de ambiente")
 	}
 	dbName := os.Getenv("LNBITS_POSTGRES_DB")
 	if dbName == "" {
-		dbName = "lnbits"
+		return nil, fmt.Errorf("LNBITS_POSTGRES_DB não configurado nas variáveis de ambiente")
 	}
 	
 	databaseURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
@@ -132,7 +132,7 @@ func NewLNBitsService(baseURL, apiToken, webhookSecret string) *LNBitsService {
 			Timeout: 30 * time.Second,
 		},
 		lnbitsDB: lnbitsDB,
-	}
+	}, nil
 }
 
 // getWalletFromDB obtém as informações da wallet diretamente do banco do LNBits

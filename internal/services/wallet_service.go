@@ -457,6 +457,16 @@ func (s *WalletService) GetWalletByEmailConfirmationToken(token string) (*models
 	return s.db.GetWalletByEmailConfirmationToken(token)
 }
 
+// GetWalletByEmailAndTokenHistory verifica se uma carteira foi confirmada recentemente
+func (s *WalletService) GetWalletByEmailAndTokenHistory(email, token string) (*models.Wallet, error) {
+	return s.db.GetWalletByEmailAndTokenHistory(email, token)
+}
+
+// GetWalletByEmail obtém uma carteira pelo email
+func (s *WalletService) GetWalletByEmail(email string) (*models.Wallet, error) {
+	return s.db.GetWalletByEmail(email)
+}
+
 // GetWalletInfo retorna informações da carteira (sem as chaves sensíveis)
 func (s *WalletService) GetWalletInfo(email string) (*models.Wallet, error) {
 	wallet, err := s.db.GetWalletByEmail(email)

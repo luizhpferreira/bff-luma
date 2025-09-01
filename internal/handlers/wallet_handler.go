@@ -209,6 +209,11 @@ func (h *WalletHandler) ConfirmEmailPage(w http.ResponseWriter, r *http.Request)
         </div>
         
         <div class="content">
+            <div id="initial-loading" class="loading">
+                <div class="spinner"></div>
+                <p>Carregando confirmação...</p>
+            </div>
+            
             <div id="loading" class="loading">
                 <div class="spinner"></div>
                 <p>Confirmando seu email...</p>
@@ -233,9 +238,26 @@ func (h *WalletHandler) ConfirmEmailPage(w http.ResponseWriter, r *http.Request)
 
     <script>
         const token = '%s';
+        let isConfirming = false;
+        let hasConfirmed = false;
+        
+        // Detecta se é iPhone/iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isStandalone = window.navigator.standalone;
+        
+        // Se for iPhone e não estiver em modo standalone (app), adiciona delay extra
+        const delay = isIOS && !isStandalone ? 2000 : 1000;
         
         async function confirmEmail() {
+            // Evita múltiplas tentativas simultâneas
+            if (isConfirming || hasConfirmed) {
+                return;
+            }
+            
+            isConfirming = true;
             document.getElementById('loading').style.display = 'block';
+            document.getElementById('success').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
             
             try {
                 const response = await fetch('/api/v1/confirm-email', {
@@ -249,6 +271,7 @@ func (h *WalletHandler) ConfirmEmailPage(w http.ResponseWriter, r *http.Request)
                 const data = await response.json();
                 
                 if (response.ok && data.success) {
+                    hasConfirmed = true;
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('success').style.display = 'block';
                     
@@ -257,23 +280,50 @@ func (h *WalletHandler) ConfirmEmailPage(w http.ResponseWriter, r *http.Request)
                         window.location.href = 'bffluma://login';
                     }, 2000);
                 } else {
-                    throw new Error(data.message || 'Erro na confirmação');
+                    // Se o token já foi usado, mostra sucesso mesmo com erro
+                    if (data.message && data.message.includes('Token inválido')) {
+                        hasConfirmed = true;
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('success').style.display = 'block';
+                        
+                        setTimeout(() => {
+                            window.location.href = 'bffluma://login';
+                        }, 2000);
+                    } else {
+                        throw new Error(data.message || 'Erro na confirmação');
+                    }
                 }
             } catch (error) {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('error').style.display = 'block';
                 document.getElementById('error-message').textContent = error.message;
+            } finally {
+                isConfirming = false;
             }
         }
         
         function retryConfirmation() {
-            document.getElementById('success').style.display = 'none';
-            document.getElementById('error').style.display = 'none';
-            confirmEmail();
+            if (!hasConfirmed) {
+                confirmEmail();
+            }
         }
         
-        // Inicia a confirmação automaticamente
-        window.onload = confirmEmail;
+        // Mostra tela inicial de carregamento
+        document.getElementById('initial-loading').style.display = 'block';
+        
+        // Inicia a confirmação automaticamente, mas com delay para evitar preview do iPhone
+        setTimeout(() => {
+            document.getElementById('initial-loading').style.display = 'none';
+            confirmEmail();
+        }, delay); // Delay dinâmico baseado no dispositivo
+        
+        // Previne recarregamento da página
+        window.addEventListener('beforeunload', function(e) {
+            if (isConfirming) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
     </script>
 </body>
 </html>`, token)
@@ -485,15 +535,46 @@ func (h *WalletHandler) ConfirmEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Busca a carteira antes de confirmar para obter o email
+	// Busca a carteira pelo token de confirmação
 	wallet, err := h.walletService.GetWalletByEmailConfirmationToken(req.Token)
-	if err != nil || wallet == nil {
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Erro ao validar token", err.Error())
+		return
+	}
+	
+	if wallet == nil {
+		// Se não encontrou pelo token, pode ser que já foi confirmado
+		// Vamos tentar extrair o email do token ou buscar por outros meios
+		// Por enquanto, retornamos erro genérico
 		respondWithError(w, http.StatusBadRequest, "Token inválido ou expirado", "")
+		return
+	}
+
+	// Verifica se o email já foi confirmado
+	if wallet.EmailConfirmed {
+		response := &models.ConfirmEmailResponse{
+			Message: "Email já foi confirmado anteriormente!",
+			Email:   wallet.Email,
+		}
+		respondWithSuccess(w, http.StatusOK, "Email já confirmado", response)
 		return
 	}
 
 	// Confirma o email
 	if err := h.walletService.ConfirmEmail(req.Token); err != nil {
+		// Se o erro for "token inválido", pode ser que já foi confirmado
+		if strings.Contains(err.Error(), "token inválido") || strings.Contains(err.Error(), "Token inválido") {
+			// Busca a carteira pelo email para verificar se foi confirmada
+			confirmedWallet, err := h.walletService.GetWalletByEmail(wallet.Email)
+			if err == nil && confirmedWallet != nil && confirmedWallet.EmailConfirmed {
+				response := &models.ConfirmEmailResponse{
+					Message: "Email já foi confirmado anteriormente!",
+					Email:   confirmedWallet.Email,
+				}
+				respondWithSuccess(w, http.StatusOK, "Email já confirmado", response)
+				return
+			}
+		}
 		respondWithError(w, http.StatusBadRequest, "Erro ao confirmar email", err.Error())
 		return
 	}

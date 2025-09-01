@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Compila o aplicativo (CGO habilitado para PostgreSQL)
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags "-linkmode external -extldflags -static" -a -installsuffix cgo -o main ./cmd/server
+RUN CGO_ENABLED=1 GOOS=linux go build -o main ./cmd/server
 
 # Final stage
 FROM ubuntu:22.04
